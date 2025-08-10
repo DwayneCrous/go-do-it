@@ -17,6 +17,7 @@ A simple terminal-based Todo List application written in Go, using the Bubble Te
 - `d`: Delete the selected todo
 - `r`: Reload todos from file
 - `q`: Quit the application
+- `e`: Edit a todo
 
 ## Requirements
 
