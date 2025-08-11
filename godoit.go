@@ -26,7 +26,7 @@ const (
 )
 
 type model struct {
-	todos      []string
+	todos      []string // Format: [ ] Task #id or [x] Task #id
 	cursor     int
 	mode       mode
 	textInput  textinput.Model
@@ -67,6 +67,16 @@ func loadTodos() []string {
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if line != "" {
+			// If old format, upgrade to new format
+			if !strings.HasPrefix(line, "[ ]") && !strings.HasPrefix(line, "[x]") {
+				// Try to find id
+				id := ""
+				if idx := strings.LastIndex(line, " #"); idx != -1 {
+					id = line[idx:]
+					line = line[:idx]
+				}
+				line = "[ ] " + strings.TrimSpace(line) + id
+			}
 			todos = append(todos, line)
 		}
 	}
@@ -107,49 +117,58 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case modeView:
 			switch k {
 			case "ctrl+c", "q":
-
 				return m, tea.Quit
 			case "j", "down":
-
 				if m.cursor < len(m.todos)-1 {
 					m.cursor++
 				}
 			case "k", "up":
-
 				if m.cursor > 0 {
 					m.cursor--
 				}
 			case "a":
-
 				m.mode = modeAdd
 				m.textInput.SetValue("")
 				m.textInput.Focus()
 				m.status = "Adding a new todo"
 				return m, m.textInput.Focus()
 			case "d":
-
 				if len(m.todos) > 0 {
 					m.mode = modeConfirmDelete
 					m.confirmIdx = m.cursor
 					m.status = fmt.Sprintf("Delete todo #%d? (y/n)", m.confirmIdx+1)
 				}
 			case "e":
-
 				if len(m.todos) > 0 {
 					m.mode = modeEdit
 					m.editIdx = m.cursor
-
 					todo := m.todos[m.editIdx]
 					if idx := strings.LastIndex(todo, " #"); idx != -1 {
-						todo = todo[:idx]
+						todo = todo[4:idx] // skip [ ] or [x] and space
 					}
 					m.textInput.SetValue(todo)
 					m.textInput.Focus()
 					m.status = "Editing todo"
 					return m, m.textInput.Focus()
 				}
+			case " ":
+				// Toggle completion
+				if len(m.todos) > 0 {
+					todo := m.todos[m.cursor]
+					done := strings.HasPrefix(todo, "[x]")
+					rest := todo[3:]
+					if strings.HasPrefix(rest, " ") {
+						rest = rest[1:]
+					}
+					if done {
+						m.todos[m.cursor] = "[ ] " + rest
+					} else {
+						m.todos[m.cursor] = "[x] " + rest
+					}
+					saveTodos(m.todos)
+					m.status = "Toggled completion"
+				}
 			case "r":
-
 				m.todos = loadTodos()
 				m.status = "Reloaded todos from file"
 			}
@@ -158,13 +177,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			var cmd tea.Cmd
 			m.textInput, cmd = m.textInput.Update(msg)
-
 			if k == "enter" {
-
 				val := strings.TrimSpace(m.textInput.Value())
 				if val != "" {
 					id := strconv.FormatInt(time.Now().UnixNano(), 10)[8:]
-					entry := val + " #" + id
+					entry := "[ ] " + val + " #" + id
 					m.todos = append(m.todos, entry)
 					saveTodos(m.todos)
 					m.status = "Added todo"
@@ -173,7 +190,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				m.mode = modeView
 			} else if k == "esc" {
-
 				m.status = "Add cancelled"
 				m.mode = modeView
 			}
@@ -186,13 +202,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if k == "enter" {
 				val := strings.TrimSpace(m.textInput.Value())
 				if val != "" && m.editIdx >= 0 && m.editIdx < len(m.todos) {
-
 					old := m.todos[m.editIdx]
 					id := ""
+					prefix := "[ ] "
+					if strings.HasPrefix(old, "[x]") {
+						prefix = "[x] "
+					}
 					if idx := strings.LastIndex(old, " #"); idx != -1 {
 						id = old[idx:]
 					}
-					m.todos[m.editIdx] = val + id
+					m.todos[m.editIdx] = prefix + val + id
 					saveTodos(m.todos)
 					m.status = "Todo edited"
 				} else {
@@ -238,25 +257,32 @@ func (m model) View() string {
 	headerStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#FAFAFA")).Background(lipgloss.Color("#7D56F4")).Padding(0, 1)
 	cursorStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#FF7CCB"))
 	statusStyle := lipgloss.NewStyle().Italic(true).Foreground(lipgloss.Color("#888"))
+	doneStyle := lipgloss.NewStyle().Faint(true).Strikethrough(true)
 
 	var b strings.Builder
 	b.WriteString(headerStyle.Render(" Go-Do-It — Bubble Tea TUI ") + "\n\n")
 
 	if len(m.todos) == 0 {
-
 		b.WriteString("No todos yet — press 'a' to add one.\n\n")
 	} else {
-
 		for i, t := range m.todos {
 			prefix := "  "
 			if i == m.cursor && m.mode == modeView {
 				prefix = cursorStyle.Render("> ")
 			}
 			display := t
-			if len(display) > 80 {
-				display = display[:77] + "..."
+			// Show only the task text, not the id
+			task := display
+			if idx := strings.LastIndex(display, " #"); idx != -1 {
+				task = display[:idx]
 			}
-			b.WriteString(fmt.Sprintf("%s%d: %s\n", prefix, i+1, display))
+			if len(task) > 80 {
+				task = task[:77] + "..."
+			}
+			if strings.HasPrefix(display, "[x]") {
+				task = doneStyle.Render(task)
+			}
+			b.WriteString(fmt.Sprintf("%s%d: %s\n", prefix, i+1, task))
 		}
 		b.WriteString("\n")
 	}
@@ -275,7 +301,7 @@ func (m model) View() string {
 	b.WriteString("\n")
 	b.WriteString(statusStyle.Render(m.status))
 	b.WriteString("\n\n")
-	b.WriteString("Controls: j/down k/up a:add d:delete e:edit r:reload q:quit\n")
+	b.WriteString("Controls: j/down k/up a:add d:delete e:edit <space>:toggle r:reload q:quit\n")
 
 	return b.String()
 }
