@@ -26,7 +26,7 @@ const (
 )
 
 type model struct {
-	todos      []string // Format: [ ] Task #id or [x] Task #id
+	todos      []string
 	cursor     int
 	mode       mode
 	textInput  textinput.Model
@@ -67,9 +67,9 @@ func loadTodos() []string {
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if line != "" {
-			// If old format, upgrade to new format
+
 			if !strings.HasPrefix(line, "[ ]") && !strings.HasPrefix(line, "[x]") {
-				// Try to find id
+
 				id := ""
 				if idx := strings.LastIndex(line, " #"); idx != -1 {
 					id = line[idx:]
@@ -144,7 +144,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.editIdx = m.cursor
 					todo := m.todos[m.editIdx]
 					if idx := strings.LastIndex(todo, " #"); idx != -1 {
-						todo = todo[4:idx] // skip [ ] or [x] and space
+						todo = todo[4:idx]
 					}
 					m.textInput.SetValue(todo)
 					m.textInput.Focus()
@@ -152,7 +152,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return m, m.textInput.Focus()
 				}
 			case " ":
-				// Toggle completion
+
 				if len(m.todos) > 0 {
 					todo := m.todos[m.cursor]
 					done := strings.HasPrefix(todo, "[x]")
@@ -271,7 +271,7 @@ func (m model) View() string {
 				prefix = cursorStyle.Render("> ")
 			}
 			display := t
-			// Show only the task text, not the id
+
 			task := display
 			if idx := strings.LastIndex(display, " #"); idx != -1 {
 				task = display[:idx]

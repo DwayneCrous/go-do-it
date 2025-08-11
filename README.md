@@ -13,6 +13,7 @@ A simple terminal-based Todo List application written in Go, using the Bubble Te
 
 - `j` / `down arrow`: Move cursor down
 - `k` / `up arrow`: Move cursor up
+- `space`: Toggle completion
 - `a`: Add a new todo
 - `d`: Delete the selected todo
 - `r`: Reload todos from file
