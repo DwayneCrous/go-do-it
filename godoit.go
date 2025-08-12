@@ -26,15 +26,17 @@ const (
 )
 
 type model struct {
-	todos      []string
-	cursor     int
-	mode       mode
-	textInput  textinput.Model
-	status     string
-	width      int
-	height     int
-	confirmIdx int
-	editIdx    int
+	todos          []string
+	cursor         int
+	mode           mode
+	textInput      textinput.Model
+	status         string
+	width          int
+	height         int
+	confirmIdx     int
+	editIdx        int
+	priorityInput  int  // 0: urgent, 1: medium, 2: low
+	prioritySelect bool // true if selecting priority
 }
 
 func initialModel() model {
@@ -44,11 +46,13 @@ func initialModel() model {
 	ti.Width = 50
 
 	return model{
-		todos:     loadTodos(),
-		cursor:    0,
-		mode:      modeView,
-		textInput: ti,
-		status:    "Press 'a' to add, 'd' to delete, 'r' to reload, 'q' to quit.",
+		todos:          loadTodos(),
+		cursor:         0,
+		mode:           modeView,
+		textInput:      ti,
+		status:         "Press 'a' to add, 'd' to delete, 'r' to reload, 'q' to quit.",
+		priorityInput:  1, // default to medium
+		prioritySelect: false,
 	}
 }
 
@@ -67,15 +71,14 @@ func loadTodos() []string {
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if line != "" {
-
-			if !strings.HasPrefix(line, "[ ]") && !strings.HasPrefix(line, "[x]") {
-
+			// If no priority, default to medium
+			if !strings.Contains(line, "[urgent]") && !strings.Contains(line, "[medium]") && !strings.Contains(line, "[low]") {
 				id := ""
 				if idx := strings.LastIndex(line, " #"); idx != -1 {
 					id = line[idx:]
 					line = line[:idx]
 				}
-				line = "[ ] " + strings.TrimSpace(line) + id
+				line = "[ ] " + strings.TrimSpace(line) + " [medium]" + id
 			}
 			todos = append(todos, line)
 		}
@@ -131,6 +134,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.textInput.SetValue("")
 				m.textInput.Focus()
 				m.status = "Adding a new todo"
+				m.priorityInput = 1 // default to medium
+				m.prioritySelect = false
 				return m, m.textInput.Focus()
 			case "d":
 				if len(m.todos) > 0 {
@@ -175,20 +180,51 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case modeAdd:
 
+			if m.prioritySelect {
+				// Priority selection mode
+				switch k {
+				case "left":
+					if m.priorityInput > 0 {
+						m.priorityInput--
+					}
+				case "right":
+					if m.priorityInput < 2 {
+						m.priorityInput++
+					}
+				case "enter":
+					val := strings.TrimSpace(m.textInput.Value())
+					if val != "" {
+						id := strconv.FormatInt(time.Now().UnixNano(), 10)[8:]
+						var prio string
+						switch m.priorityInput {
+						case 0:
+							prio = "[urgent]"
+						case 1:
+							prio = "[medium]"
+						case 2:
+							prio = "[low]"
+						}
+						entry := "[ ] " + val + " " + prio + " #" + id
+						m.todos = append(m.todos, entry)
+						saveTodos(m.todos)
+						m.status = "Added todo"
+					} else {
+						m.status = "Empty todo not added"
+					}
+					m.mode = modeView
+					m.prioritySelect = false
+				case "esc":
+					m.status = "Add cancelled"
+					m.mode = modeView
+					m.prioritySelect = false
+				}
+				return m, nil
+			}
 			var cmd tea.Cmd
 			m.textInput, cmd = m.textInput.Update(msg)
 			if k == "enter" {
-				val := strings.TrimSpace(m.textInput.Value())
-				if val != "" {
-					id := strconv.FormatInt(time.Now().UnixNano(), 10)[8:]
-					entry := "[ ] " + val + " #" + id
-					m.todos = append(m.todos, entry)
-					saveTodos(m.todos)
-					m.status = "Added todo"
-				} else {
-					m.status = "Empty todo not added"
-				}
-				m.mode = modeView
+				m.prioritySelect = true
+				m.status = "Select priority: ←/→ and Enter (urgent, medium, low)"
 			} else if k == "esc" {
 				m.status = "Add cancelled"
 				m.mode = modeView
@@ -197,27 +233,67 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case modeEdit:
 
+			if m.prioritySelect {
+				// Priority selection for edit
+				switch k {
+				case "left":
+					if m.priorityInput > 0 {
+						m.priorityInput--
+					}
+				case "right":
+					if m.priorityInput < 2 {
+						m.priorityInput++
+					}
+				case "enter":
+					val := strings.TrimSpace(m.textInput.Value())
+					if val != "" && m.editIdx >= 0 && m.editIdx < len(m.todos) {
+						old := m.todos[m.editIdx]
+						id := ""
+						prefix := "[ ] "
+						if strings.HasPrefix(old, "[x]") {
+							prefix = "[x] "
+						}
+						if idx := strings.LastIndex(old, " #"); idx != -1 {
+							id = old[idx:]
+						}
+						var prio string
+						switch m.priorityInput {
+						case 0:
+							prio = "[urgent]"
+						case 1:
+							prio = "[medium]"
+						case 2:
+							prio = "[low]"
+						}
+						m.todos[m.editIdx] = prefix + val + " " + prio + id
+						saveTodos(m.todos)
+						m.status = "Todo edited"
+					} else {
+						m.status = "Edit cancelled or empty"
+					}
+					m.mode = modeView
+					m.prioritySelect = false
+				case "esc":
+					m.status = "Edit cancelled"
+					m.mode = modeView
+					m.prioritySelect = false
+				}
+				return m, nil
+			}
 			var cmd tea.Cmd
 			m.textInput, cmd = m.textInput.Update(msg)
 			if k == "enter" {
-				val := strings.TrimSpace(m.textInput.Value())
-				if val != "" && m.editIdx >= 0 && m.editIdx < len(m.todos) {
-					old := m.todos[m.editIdx]
-					id := ""
-					prefix := "[ ] "
-					if strings.HasPrefix(old, "[x]") {
-						prefix = "[x] "
-					}
-					if idx := strings.LastIndex(old, " #"); idx != -1 {
-						id = old[idx:]
-					}
-					m.todos[m.editIdx] = prefix + val + id
-					saveTodos(m.todos)
-					m.status = "Todo edited"
+				// Parse current priority
+				old := m.todos[m.editIdx]
+				if strings.Contains(old, "[urgent]") {
+					m.priorityInput = 0
+				} else if strings.Contains(old, "[medium]") {
+					m.priorityInput = 1
 				} else {
-					m.status = "Edit cancelled or empty"
+					m.priorityInput = 2
 				}
-				m.mode = modeView
+				m.prioritySelect = true
+				m.status = "Select priority: ←/→ and Enter (urgent, medium, low)"
 			} else if k == "esc" {
 				m.status = "Edit cancelled"
 				m.mode = modeView
@@ -258,6 +334,9 @@ func (m model) View() string {
 	cursorStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#FF7CCB"))
 	statusStyle := lipgloss.NewStyle().Italic(true).Foreground(lipgloss.Color("#888"))
 	doneStyle := lipgloss.NewStyle().Faint(true).Strikethrough(true)
+	urStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#FF3333")).Bold(true)
+	medStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#FFD700")).Bold(true)
+	lowStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#00CC44")).Bold(true)
 
 	var b strings.Builder
 	b.WriteString(headerStyle.Render(" Go-Do-It — Bubble Tea TUI ") + "\n\n")
@@ -273,8 +352,30 @@ func (m model) View() string {
 			display := t
 
 			task := display
-			if idx := strings.LastIndex(display, " #"); idx != -1 {
-				task = display[:idx]
+			idIdx := strings.LastIndex(display, " #")
+			prio := "[medium]"
+			prioIdx := strings.LastIndex(display, "] [")
+			if prioIdx == -1 {
+				// try to find [urgent], [medium], [low]
+				if strings.Contains(display, "[urgent]") {
+					prio = "[urgent]"
+				} else if strings.Contains(display, "[low]") {
+					prio = "[low]"
+				}
+			} else {
+				// e.g. [ ] task [urgent] #id
+				prioStart := strings.LastIndex(display, "[")
+				prioEnd := strings.LastIndex(display, "]")
+				if prioStart != -1 && prioEnd != -1 && prioEnd > prioStart {
+					prio = display[prioStart : prioEnd+1]
+				}
+			}
+			if idIdx != -1 {
+				task = display[:idIdx]
+			}
+			// Remove priority from task for display
+			if pidx := strings.LastIndex(task, "["); pidx != -1 {
+				task = strings.TrimSpace(task[:pidx])
 			}
 			if len(task) > 80 {
 				task = task[:77] + "..."
@@ -282,18 +383,56 @@ func (m model) View() string {
 			if strings.HasPrefix(display, "[x]") {
 				task = doneStyle.Render(task)
 			}
-			b.WriteString(fmt.Sprintf("%s%d: %s\n", prefix, i+1, task))
+			// Color priority
+			prioLabel := ""
+			switch prio {
+			case "[urgent]":
+				prioLabel = urStyle.Render("[urgent]")
+			case "[medium]":
+				prioLabel = medStyle.Render("[medium]")
+			case "[low]":
+				prioLabel = lowStyle.Render("[low]")
+			}
+			b.WriteString(fmt.Sprintf("%s%d: %s %s\n", prefix, i+1, task, prioLabel))
 		}
 		b.WriteString("\n")
 	}
 
 	switch m.mode {
 	case modeAdd:
-		b.WriteString("Add mode — press Enter to save, Esc to cancel\n")
-		b.WriteString(m.textInput.View() + "\n")
+		if m.prioritySelect {
+			b.WriteString("Select priority: ←/→ and Enter (urgent, medium, low)\n")
+			prioNames := []string{"[urgent]", "[medium]", "[low]"}
+			styles := []lipgloss.Style{urStyle, medStyle, lowStyle}
+			for i, name := range prioNames {
+				if i == m.priorityInput {
+					b.WriteString(styles[i].Bold(true).Underline(true).Render(name) + " ")
+				} else {
+					b.WriteString(styles[i].Render(name) + " ")
+				}
+			}
+			b.WriteString("\n")
+		} else {
+			b.WriteString("Add mode — press Enter to continue, Esc to cancel\n")
+			b.WriteString(m.textInput.View() + "\n")
+		}
 	case modeEdit:
-		b.WriteString("Edit mode — press Enter to save, Esc to cancel\n")
-		b.WriteString(m.textInput.View() + "\n")
+		if m.prioritySelect {
+			b.WriteString("Select priority: ←/→ and Enter (urgent, medium, low)\n")
+			prioNames := []string{"[urgent]", "[medium]", "[low]"}
+			styles := []lipgloss.Style{urStyle, medStyle, lowStyle}
+			for i, name := range prioNames {
+				if i == m.priorityInput {
+					b.WriteString(styles[i].Bold(true).Underline(true).Render(name) + " ")
+				} else {
+					b.WriteString(styles[i].Render(name) + " ")
+				}
+			}
+			b.WriteString("\n")
+		} else {
+			b.WriteString("Edit mode — press Enter to continue, Esc to cancel\n")
+			b.WriteString(m.textInput.View() + "\n")
+		}
 	case modeConfirmDelete:
 		b.WriteString(m.status + "\n")
 	}

@@ -4,7 +4,8 @@ A simple terminal-based Todo List application written in Go, using the Bubble Te
 
 ## Features
 
-- Add, view, and delete todos from a text-based interface
+- Add, view, edit, and delete todos from a text-based interface
+- Set a priority for each task: **urgent** (red), **medium** (yellow), or **low** (green)
 - Todos are saved to a local file (`todolist.txt`)
 - Keyboard navigation and controls
 - Modern, colorful TUI using Bubble Tea and Lip Gloss
@@ -14,11 +15,11 @@ A simple terminal-based Todo List application written in Go, using the Bubble Te
 - `j` / `down arrow`: Move cursor down
 - `k` / `up arrow`: Move cursor up
 - `space`: Toggle completion
-- `a`: Add a new todo
+- `a`: Add a new todo (then select priority with ←/→ and Enter)
 - `d`: Delete the selected todo
 - `r`: Reload todos from file
 - `q`: Quit the application
-- `e`: Edit a todo
+- `e`: Edit a todo (then select priority with ←/→ and Enter)
 
 ## Requirements
 
