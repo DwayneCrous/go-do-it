@@ -35,8 +35,8 @@ type model struct {
 	height         int
 	confirmIdx     int
 	editIdx        int
-	priorityInput  int  // 0: urgent, 1: medium, 2: low
-	prioritySelect bool // true if selecting priority
+	priorityInput  int
+	prioritySelect bool
 }
 
 func initialModel() model {
@@ -51,7 +51,7 @@ func initialModel() model {
 		mode:           modeView,
 		textInput:      ti,
 		status:         "Press 'a' to add, 'd' to delete, 'r' to reload, 'q' to quit.",
-		priorityInput:  1, // default to medium
+		priorityInput:  1,
 		prioritySelect: false,
 	}
 }
@@ -71,7 +71,7 @@ func loadTodos() []string {
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if line != "" {
-			// If no priority, default to medium
+
 			if !strings.Contains(line, "[urgent]") && !strings.Contains(line, "[medium]") && !strings.Contains(line, "[low]") {
 				id := ""
 				if idx := strings.LastIndex(line, " #"); idx != -1 {
@@ -134,7 +134,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.textInput.SetValue("")
 				m.textInput.Focus()
 				m.status = "Adding a new todo"
-				m.priorityInput = 1 // default to medium
+				m.priorityInput = 1
 				m.prioritySelect = false
 				return m, m.textInput.Focus()
 			case "d":
@@ -181,7 +181,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case modeAdd:
 
 			if m.prioritySelect {
-				// Priority selection mode
+
 				switch k {
 				case "left":
 					if m.priorityInput > 0 {
@@ -234,7 +234,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case modeEdit:
 
 			if m.prioritySelect {
-				// Priority selection for edit
+
 				switch k {
 				case "left":
 					if m.priorityInput > 0 {
@@ -283,7 +283,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			var cmd tea.Cmd
 			m.textInput, cmd = m.textInput.Update(msg)
 			if k == "enter" {
-				// Parse current priority
+
 				old := m.todos[m.editIdx]
 				if strings.Contains(old, "[urgent]") {
 					m.priorityInput = 0
@@ -356,14 +356,14 @@ func (m model) View() string {
 			prio := "[medium]"
 			prioIdx := strings.LastIndex(display, "] [")
 			if prioIdx == -1 {
-				// try to find [urgent], [medium], [low]
+
 				if strings.Contains(display, "[urgent]") {
 					prio = "[urgent]"
 				} else if strings.Contains(display, "[low]") {
 					prio = "[low]"
 				}
 			} else {
-				// e.g. [ ] task [urgent] #id
+
 				prioStart := strings.LastIndex(display, "[")
 				prioEnd := strings.LastIndex(display, "]")
 				if prioStart != -1 && prioEnd != -1 && prioEnd > prioStart {
@@ -373,7 +373,7 @@ func (m model) View() string {
 			if idIdx != -1 {
 				task = display[:idIdx]
 			}
-			// Remove priority from task for display
+
 			if pidx := strings.LastIndex(task, "["); pidx != -1 {
 				task = strings.TrimSpace(task[:pidx])
 			}
@@ -383,7 +383,7 @@ func (m model) View() string {
 			if strings.HasPrefix(display, "[x]") {
 				task = doneStyle.Render(task)
 			}
-			// Color priority
+
 			prioLabel := ""
 			switch prio {
 			case "[urgent]":
