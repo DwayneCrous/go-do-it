@@ -22,8 +22,11 @@ const (
 	modeView mode = iota
 	modeAdd
 	modeConfirmDelete
+	modeConfirmDeleteAll
 	modeEdit
 )
+
+// ...existing code...
 
 type model struct {
 	todos          []string
@@ -142,6 +145,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.mode = modeConfirmDelete
 					m.confirmIdx = m.cursor
 					m.status = fmt.Sprintf("Delete todo #%d? (y/n)", m.confirmIdx+1)
+				}
+			case "D":
+				if len(m.todos) > 0 {
+					m.mode = modeConfirmDeleteAll
+					m.status = "Are you sure you want to delete ALL todos? (y/n)"
 				}
 			case "e":
 				if len(m.todos) > 0 {
@@ -300,10 +308,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, cmd
 		case modeConfirmDelete:
-
 			switch k {
 			case "y", "enter":
-
 				if m.confirmIdx >= 0 && m.confirmIdx < len(m.todos) {
 					m.todos = append(m.todos[:m.confirmIdx], m.todos[m.confirmIdx+1:]...)
 					saveTodos(m.todos)
@@ -314,9 +320,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				m.mode = modeView
 			case "n", "esc":
-
 				m.mode = modeView
 				m.status = "Delete cancelled"
+			}
+		case modeConfirmDeleteAll:
+			switch k {
+			case "y", "enter":
+				m.todos = []string{}
+				saveTodos(m.todos)
+				m.status = "All todos deleted"
+				m.mode = modeView
+				m.cursor = 0
+			case "n", "esc":
+				m.mode = modeView
+				m.status = "Delete all cancelled"
 			}
 		}
 
@@ -325,7 +342,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 	}
-
 	return m, nil
 }
 
@@ -435,12 +451,14 @@ func (m model) View() string {
 		}
 	case modeConfirmDelete:
 		b.WriteString(m.status + "\n")
+	case modeConfirmDeleteAll:
+		b.WriteString(m.status + "\n")
 	}
 
 	b.WriteString("\n")
 	b.WriteString(statusStyle.Render(m.status))
 	b.WriteString("\n\n")
-	b.WriteString("Controls: j/down k/up a:add d:delete e:edit <space>:toggle r:reload q:quit\n")
+	b.WriteString("Controls: j/down k/up a:add d:delete D:delete-all e:edit <space>:toggle r:reload q:quit\n")
 
 	return b.String()
 }
