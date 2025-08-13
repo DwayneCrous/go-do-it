@@ -58,7 +58,6 @@ Your todos will be saved in `todolist.txt` in the same directory.
 
 - Added ability to delete all todos at once (press `D` in view mode, with confirmation prompt)
 - Todos are now displayed in a table-like format with columns for number, todo (with tick status), and priority
-- Removed multi-select feature for simplicity
 
 ## License
 
