@@ -24,7 +24,6 @@ const (
 	modeConfirmDelete
 	modeConfirmDeleteAll
 	modeEdit
-	modeMultiSelect
 )
 
 // ...existing code...
@@ -41,7 +40,6 @@ type model struct {
 	editIdx        int
 	priorityInput  int
 	prioritySelect bool
-	selected       map[int]struct{} // for multi-select
 }
 
 func initialModel() model {
@@ -58,7 +56,6 @@ func initialModel() model {
 		status:         "Press 'a' to add, 'd' to delete, 'r' to reload, 'q' to quit.",
 		priorityInput:  1,
 		prioritySelect: false,
-		selected:       make(map[int]struct{}),
 	}
 }
 
@@ -183,58 +180,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					saveTodos(m.todos)
 					m.status = "Toggled completion"
 				}
-			case "m":
-				m.mode = modeMultiSelect
-				m.selected = make(map[int]struct{})
-				m.status = "Multi-select mode: Use space to select, t to toggle, m to exit."
 			case "r":
 				m.todos = loadTodos()
 				m.status = "Reloaded todos from file"
-			}
-		case modeMultiSelect:
-			switch k {
-			case "ctrl+c", "q":
-				return m, tea.Quit
-			case "j", "down":
-				if m.cursor < len(m.todos)-1 {
-					m.cursor++
-				}
-			case "k", "up":
-				if m.cursor > 0 {
-					m.cursor--
-				}
-			case " ":
-				if len(m.todos) > 0 {
-					if _, ok := m.selected[m.cursor]; ok {
-						delete(m.selected, m.cursor)
-					} else {
-						m.selected[m.cursor] = struct{}{}
-					}
-				}
-			case "t":
-				if len(m.selected) > 0 {
-					for idx := range m.selected {
-						if idx >= 0 && idx < len(m.todos) {
-							todo := m.todos[idx]
-							done := strings.HasPrefix(todo, "[x]")
-							rest := todo[3:]
-							if strings.HasPrefix(rest, " ") {
-								rest = rest[1:]
-							}
-							if done {
-								m.todos[idx] = "[ ] " + rest
-							} else {
-								m.todos[idx] = "[x] " + rest
-							}
-						}
-					}
-					saveTodos(m.todos)
-					m.status = "Toggled selected todos"
-				}
-			case "m":
-				m.mode = modeView
-				m.selected = make(map[int]struct{})
-				m.status = "Exited multi-select mode"
 			}
 
 		case modeAdd:
@@ -405,26 +353,30 @@ func (m model) View() string {
 	medStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#FFD700")).Bold(true)
 	lowStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#00CC44")).Bold(true)
 
+	// Table column widths
+	numCol := 4   // e.g.  1:  2: etc
+	taskCol := 44 // task text (slightly wider since status col is gone)
+	prioCol := 10 // [urgent] etc
+
 	var b strings.Builder
 	b.WriteString(headerStyle.Render(" Go-Do-It — Bubble Tea TUI ") + "\n\n")
 
 	if len(m.todos) == 0 {
 		b.WriteString("No todos yet — press 'a' to add one.\n\n")
 	} else {
+		// Table header
+		b.WriteString(fmt.Sprintf("%-*s%-*s%-*s\n",
+			numCol, "#", taskCol, "Todo", prioCol, "Priority"))
+		b.WriteString(strings.Repeat("-", numCol+taskCol+prioCol) + "\n")
 		for i, t := range m.todos {
-			prefix := "  "
-			if (i == m.cursor && m.mode == modeView) || (i == m.cursor && m.mode == modeMultiSelect) {
-				prefix = cursorStyle.Render("> ")
+			// Cursor highlight
+			rowPrefix := "  "
+			if i == m.cursor && m.mode == modeView {
+				rowPrefix = cursorStyle.Render("> ")
 			}
-			if m.mode == modeMultiSelect {
-				if _, ok := m.selected[i]; ok {
-					prefix = "[x] " + prefix[2:]
-				} else {
-					prefix = "[ ] " + prefix[2:]
-				}
-			}
-			display := t
 
+			// Task and priority extraction
+			display := t
 			task := display
 			idIdx := strings.LastIndex(display, " #")
 			prio := "[medium]"
@@ -445,17 +397,17 @@ func (m model) View() string {
 			if idIdx != -1 {
 				task = display[:idIdx]
 			}
-
 			if pidx := strings.LastIndex(task, "["); pidx != -1 {
 				task = strings.TrimSpace(task[:pidx])
 			}
-			if len(task) > 80 {
-				task = task[:77] + "..."
+			if len(task) > taskCol {
+				task = task[:taskCol-3] + "..."
 			}
+			// Style done tasks
 			if strings.HasPrefix(display, "[x]") {
 				task = doneStyle.Render(task)
 			}
-
+			// Style priority
 			prioLabel := ""
 			switch prio {
 			case "[urgent]":
@@ -465,7 +417,13 @@ func (m model) View() string {
 			case "[low]":
 				prioLabel = lowStyle.Render("[low]")
 			}
-			b.WriteString(fmt.Sprintf("%s%d: %s %s\n", prefix, i+1, task, prioLabel))
+			// Print row
+			b.WriteString(fmt.Sprintf("%s%-*d%-*s%-*s\n",
+				rowPrefix,
+				numCol, i+1,
+				taskCol, task,
+				prioCol, prioLabel,
+			))
 		}
 		b.WriteString("\n")
 	}
@@ -514,11 +472,7 @@ func (m model) View() string {
 	b.WriteString("\n")
 	b.WriteString(statusStyle.Render(m.status))
 	b.WriteString("\n\n")
-	if m.mode == modeMultiSelect {
-		b.WriteString("Controls: j/down k/up <space>:select t:toggle m:exit-multiselect\n")
-	} else {
-		b.WriteString("Controls: j/down k/up a:add d:delete D:delete-all e:edit <space>:toggle m:multi-select r:reload q:quit\n")
-	}
+	b.WriteString("Controls: j/down k/up a:add d:delete D:delete-all e:edit <space>:toggle r:reload q:quit\n")
 
 	return b.String()
 }
