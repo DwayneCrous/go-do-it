@@ -26,8 +26,6 @@ const (
 	modeEdit
 )
 
-// ...existing code...
-
 type model struct {
 	todos          []string
 	cursor         int
@@ -353,10 +351,9 @@ func (m model) View() string {
 	medStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#FFD700")).Bold(true)
 	lowStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#00CC44")).Bold(true)
 
-	// Table column widths
-	numCol := 4   // e.g.  1:  2: etc
-	taskCol := 44 // task text (slightly wider since status col is gone)
-	prioCol := 10 // [urgent] etc
+	numCol := 4
+	taskCol := 44
+	prioCol := 10
 
 	var b strings.Builder
 	b.WriteString(headerStyle.Render(" Go-Do-It — Bubble Tea TUI ") + "\n\n")
@@ -364,18 +361,17 @@ func (m model) View() string {
 	if len(m.todos) == 0 {
 		b.WriteString("No todos yet — press 'a' to add one.\n\n")
 	} else {
-		// Table header
+
 		b.WriteString(fmt.Sprintf("%-*s%-*s%-*s\n",
 			numCol, "#", taskCol, "Todo", prioCol, "Priority"))
 		b.WriteString(strings.Repeat("-", numCol+taskCol+prioCol) + "\n")
 		for i, t := range m.todos {
-			// Cursor highlight
+
 			rowPrefix := "  "
 			if i == m.cursor && m.mode == modeView {
 				rowPrefix = cursorStyle.Render("> ")
 			}
 
-			// Task and priority extraction
 			display := t
 			task := display
 			idIdx := strings.LastIndex(display, " #")
@@ -403,11 +399,11 @@ func (m model) View() string {
 			if len(task) > taskCol {
 				task = task[:taskCol-3] + "..."
 			}
-			// Style done tasks
+
 			if strings.HasPrefix(display, "[x]") {
 				task = doneStyle.Render(task)
 			}
-			// Style priority
+
 			prioLabel := ""
 			switch prio {
 			case "[urgent]":
@@ -417,7 +413,7 @@ func (m model) View() string {
 			case "[low]":
 				prioLabel = lowStyle.Render("[low]")
 			}
-			// Print row
+
 			b.WriteString(fmt.Sprintf("%s%-*d%-*s%-*s\n",
 				rowPrefix,
 				numCol, i+1,
