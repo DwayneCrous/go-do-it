@@ -4,23 +4,27 @@ A simple terminal-based Todo List application written in Go, using the Bubble Te
 
 ## Features
 
-- Add, view, edit, and delete todos from a text-based interface
-- Delete all todos at once, with confirmation
-- Set a priority for each task: **urgent** (red), **medium** (yellow), or **low** (green)
-- Todos are saved to a local file (`todolist.txt`)
-- Table-like formatting for todos: number, todo text (with tick status), and priority columns
-- Keyboard navigation and controls
-- Modern, colorful TUI using Bubble Tea and Lip Gloss
+- Add, view, edit, and delete todos from a modern, colorful terminal interface
+- **Edit mode**: Edit any todo, including its text, due date, and priority
+- **Due dates**: Assign an optional due date (YYYY-MM-DD) to each todo
+- **Overdue highlighting**: Todos past their due date are shown in red (unless completed)
+- **Priority selection**: Choose between **urgent** (red), **medium** (yellow), or **low** (green) for each task
+- **Delete all**: Remove all todos at once, with confirmation
+- **Reload**: Instantly reload todos from file without restarting
+- **Persistent storage**: Todos are saved to a local file (`todolist.txt`)
+- **Table-like formatting**: Todos are displayed with columns for number, task, due date, and priority
+- **Keyboard navigation and controls**: Fast, Vim-like navigation and shortcuts
+- Built with Bubble Tea, Bubbles, and Lip Gloss for a beautiful TUI
 
 ## Controls
 
 - `j` / `down arrow`: Move cursor down
 - `k` / `up arrow`: Move cursor up
 - `space`: Toggle completion (tick/untick)
-- `a`: Add a new todo (then select priority with ←/→ and Enter)
+- `a`: Add a new todo (enter text, then due date, then select priority with ←/→ and Enter)
 - `d`: Delete the selected todo
 - `D`: Delete all todos (with confirmation)
-- `e`: Edit a todo (then select priority with ←/→ and Enter)
+- `e`: Edit a todo (edit text, due date, and priority)
 - `r`: Reload todos from file
 - `q`: Quit the application
 
@@ -56,8 +60,13 @@ Your todos will be saved in `todolist.txt` in the same directory.
 
 ### Recent Updates
 
-- Added ability to delete all todos at once (press `D` in view mode, with confirmation prompt)
-- Todos are now displayed in a table-like format with columns for number, todo (with tick status), and priority
+- **Edit mode**: Edit todo text, due date, and priority
+- **Due dates**: Add/edit due dates for todos; overdue tasks are highlighted
+- **Improved add flow**: Add text, then due date, then priority
+- **Reload**: Reload todos from file with `r`
+- **Overdue highlighting**: Overdue tasks are shown in red
+- **Table columns**: Now includes due date and priority columns
+- **Delete all**: Press `D` to delete all todos (with confirmation)
 
 ## License
 
