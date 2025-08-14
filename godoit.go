@@ -38,6 +38,8 @@ type model struct {
 	editIdx        int
 	priorityInput  int
 	prioritySelect bool
+	dueDateInput   string // for due date entry
+	dueDateSelect  bool   // true if entering due date
 }
 
 func initialModel() model {
@@ -54,6 +56,8 @@ func initialModel() model {
 		status:         "Press 'a' to add, 'd' to delete, 'r' to reload, 'q' to quit.",
 		priorityInput:  1,
 		prioritySelect: false,
+		dueDateInput:   "",
+		dueDateSelect:  false,
 	}
 }
 
@@ -137,6 +141,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.status = "Adding a new todo"
 				m.priorityInput = 1
 				m.prioritySelect = false
+				m.dueDateInput = ""
+				m.dueDateSelect = false
 				return m, m.textInput.Focus()
 			case "d":
 				if len(m.todos) > 0 {
@@ -185,8 +191,38 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case modeAdd:
 
-			if m.prioritySelect {
+			if m.dueDateSelect {
+				switch k {
+				case "enter":
+					// Validate date
+					due := strings.TrimSpace(m.dueDateInput)
+					if due != "" {
+						_, err := time.Parse("2006-01-02", due)
+						if err != nil {
+							m.status = "Invalid date format. Use YYYY-MM-DD."
+							return m, nil
+						}
+					}
+					m.dueDateSelect = false
+					m.prioritySelect = true
+					m.status = "Select priority: ←/→ and Enter (urgent, medium, low)"
+				case "esc":
+					m.status = "Add cancelled"
+					m.mode = modeView
+					m.dueDateSelect = false
+				case "backspace":
+					if len(m.dueDateInput) > 0 {
+						m.dueDateInput = m.dueDateInput[:len(m.dueDateInput)-1]
+					}
+				default:
+					if len(k) == 1 && ((k[0] >= '0' && k[0] <= '9') || k[0] == '-') && len(m.dueDateInput) < 10 {
+						m.dueDateInput += k
+					}
+				}
+				return m, nil
+			}
 
+			if m.prioritySelect {
 				switch k {
 				case "left":
 					if m.priorityInput > 0 {
@@ -209,7 +245,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						case 2:
 							prio = "[low]"
 						}
-						entry := "[ ] " + val + " " + prio + " #" + id
+						due := ""
+						if m.dueDateInput != "" {
+							due = " @" + m.dueDateInput // note the leading space
+						}
+						entry := "[ ] " + val + due + " " + prio + " #" + id
 						m.todos = append(m.todos, entry)
 						saveTodos(m.todos)
 						m.status = "Added todo"
@@ -218,18 +258,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 					m.mode = modeView
 					m.prioritySelect = false
+					m.dueDateInput = ""
 				case "esc":
 					m.status = "Add cancelled"
 					m.mode = modeView
 					m.prioritySelect = false
+					m.dueDateInput = ""
 				}
 				return m, nil
 			}
 			var cmd tea.Cmd
 			m.textInput, cmd = m.textInput.Update(msg)
 			if k == "enter" {
-				m.prioritySelect = true
-				m.status = "Select priority: ←/→ and Enter (urgent, medium, low)"
+				m.dueDateSelect = true
+				m.status = "Enter due date (YYYY-MM-DD) or leave blank and press Enter: "
 			} else if k == "esc" {
 				m.status = "Add cancelled"
 				m.mode = modeView
@@ -237,9 +279,36 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, cmd
 
 		case modeEdit:
-
+			if m.dueDateSelect {
+				switch k {
+				case "enter":
+					due := strings.TrimSpace(m.dueDateInput)
+					if due != "" {
+						_, err := time.Parse("2006-01-02", due)
+						if err != nil {
+							m.status = "Invalid date format. Use YYYY-MM-DD."
+							return m, nil
+						}
+					}
+					m.dueDateSelect = false
+					m.prioritySelect = true
+					m.status = "Select priority: ←/→ and Enter (urgent, medium, low)"
+				case "esc":
+					m.status = "Edit cancelled"
+					m.mode = modeView
+					m.dueDateSelect = false
+				case "backspace":
+					if len(m.dueDateInput) > 0 {
+						m.dueDateInput = m.dueDateInput[:len(m.dueDateInput)-1]
+					}
+				default:
+					if len(k) == 1 && ((k[0] >= '0' && k[0] <= '9') || k[0] == '-') && len(m.dueDateInput) < 10 {
+						m.dueDateInput += k
+					}
+				}
+				return m, nil
+			}
 			if m.prioritySelect {
-
 				switch k {
 				case "left":
 					if m.priorityInput > 0 {
@@ -270,7 +339,27 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						case 2:
 							prio = "[low]"
 						}
-						m.todos[m.editIdx] = prefix + val + " " + prio + id
+						due := ""
+						if m.dueDateInput != "" {
+							due = " @" + m.dueDateInput
+						} else {
+							// Remove any existing due date (with its leading space)
+							if atIdx := strings.Index(old, " @"); atIdx != -1 {
+								end := atIdx + 12
+								if end > len(old) {
+									end = len(old)
+								}
+								old = old[:atIdx] + old[end:]
+							} else if atIdx := strings.Index(old, "@"); atIdx != -1 {
+								// fallback if old data had no leading space
+								end := atIdx + 11
+								if end > len(old) {
+									end = len(old)
+								}
+								old = strings.TrimSpace(old[:atIdx] + old[end:])
+							}
+						}
+						m.todos[m.editIdx] = prefix + val + due + " " + prio + id
 						saveTodos(m.todos)
 						m.status = "Todo edited"
 					} else {
@@ -278,27 +367,30 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 					m.mode = modeView
 					m.prioritySelect = false
+					m.dueDateInput = ""
 				case "esc":
 					m.status = "Edit cancelled"
 					m.mode = modeView
 					m.prioritySelect = false
+					m.dueDateInput = ""
 				}
 				return m, nil
 			}
 			var cmd tea.Cmd
 			m.textInput, cmd = m.textInput.Update(msg)
 			if k == "enter" {
-
+				// Try to extract due date from old
 				old := m.todos[m.editIdx]
-				if strings.Contains(old, "[urgent]") {
-					m.priorityInput = 0
-				} else if strings.Contains(old, "[medium]") {
-					m.priorityInput = 1
-				} else {
-					m.priorityInput = 2
+				m.dueDateInput = ""
+				if atIdx := strings.Index(old, " @"); atIdx != -1 {
+					end := atIdx + 12
+					if end > len(old) {
+						end = len(old)
+					}
+					m.dueDateInput = strings.TrimSpace(old[atIdx+2 : end])
 				}
-				m.prioritySelect = true
-				m.status = "Select priority: ←/→ and Enter (urgent, medium, low)"
+				m.dueDateSelect = true
+				m.status = "Enter due date (YYYY-MM-DD) or leave blank and press Enter: "
 			} else if k == "esc" {
 				m.status = "Edit cancelled"
 				m.mode = modeView
@@ -350,10 +442,16 @@ func (m model) View() string {
 	urStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#FF3333")).Bold(true)
 	medStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#FFD700")).Bold(true)
 	lowStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#00CC44")).Bold(true)
+	overdueStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#FF0000")).Bold(true).Underline(true)
 
-	numCol := 4
-	taskCol := 44
-	prioCol := 10
+	// Column widths
+	numCol := 4   // "#"
+	taskCol := 44 // "Todo"
+	dueCol := 12  // "YYYY-MM-DD"
+	prioCol := 10 // "[medium]"
+
+	space := " "
+	sep := space // one space separator between columns
 
 	var b strings.Builder
 	b.WriteString(headerStyle.Render(" Go-Do-It — Bubble Tea TUI ") + "\n\n")
@@ -362,49 +460,84 @@ func (m model) View() string {
 		b.WriteString("No todos yet — press 'a' to add one.\n\n")
 	} else {
 
-		b.WriteString(fmt.Sprintf("%-*s%-*s%-*s\n",
-			numCol, "#", taskCol, "Todo", prioCol, "Priority"))
-		b.WriteString(strings.Repeat("-", numCol+taskCol+prioCol) + "\n")
-		for i, t := range m.todos {
+		headerLine := fmt.Sprintf("%-*s%s%-*s%s%-*s%s%-*s",
+			numCol, "#", sep,
+			taskCol, "Todo", sep,
+			dueCol, "Due Date", sep,
+			prioCol, "Priority",
+		)
+		b.WriteString(headerLine + "\n")
+		b.WriteString(strings.Repeat("-", len(headerLine)) + "\n")
 
+		for i, t := range m.todos {
 			rowPrefix := "  "
 			if i == m.cursor && m.mode == modeView {
 				rowPrefix = cursorStyle.Render("> ")
 			}
-
 			display := t
 			task := display
-			idIdx := strings.LastIndex(display, " #")
+
+			// priority detection
 			prio := "[medium]"
-			prioIdx := strings.LastIndex(display, "] [")
-			if prioIdx == -1 {
-				if strings.Contains(display, "[urgent]") {
-					prio = "[urgent]"
-				} else if strings.Contains(display, "[low]") {
-					prio = "[low]"
-				}
-			} else {
-				prioStart := strings.LastIndex(display, "[")
-				prioEnd := strings.LastIndex(display, "]")
-				if prioStart != -1 && prioEnd != -1 && prioEnd > prioStart {
-					prio = display[prioStart : prioEnd+1]
-				}
+			if strings.Contains(display, "[urgent]") {
+				prio = "[urgent]"
+			} else if strings.Contains(display, "[low]") {
+				prio = "[low]"
 			}
-			if idIdx != -1 {
+
+			// due date extraction: look for " @"
+			dueDate := ""
+			if atIdx := strings.Index(display, " @"); atIdx != -1 {
+				end := atIdx + 12 // space + '@' + 10 chars (YYYY-MM-DD)
+				if end > len(display) {
+					end = len(display)
+				}
+				dueDate = strings.TrimSpace(display[atIdx+2 : end])
+			}
+
+			// remove trailing id for task text
+			if idIdx := strings.LastIndex(display, " #"); idIdx != -1 {
 				task = display[:idIdx]
+			} else {
+				task = display
 			}
+
+			// strip priority and due date from task
 			if pidx := strings.LastIndex(task, "["); pidx != -1 {
 				task = strings.TrimSpace(task[:pidx])
 			}
-			if len(task) > taskCol {
-				task = task[:taskCol-3] + "..."
+			if atIdx := strings.Index(task, " @"); atIdx != -1 {
+				task = strings.TrimSpace(task[:atIdx])
 			}
 
-			if strings.HasPrefix(display, "[x]") {
+			// ellipsis if needed
+			if lipgloss.Width(task) > taskCol {
+				// naive cut that keeps width
+				r := []rune(task)
+				if len(r) > taskCol-3 {
+					r = r[:taskCol-3]
+				}
+				task = string(r) + "..."
+			}
+
+			// status styling
+			isDone := strings.HasPrefix(display, "[x]")
+			isOverdue := false
+			if dueDate != "" && !isDone {
+				if due, err := time.Parse("2006-01-02", dueDate); err == nil {
+					if due.Before(time.Now()) {
+						isOverdue = true
+					}
+				}
+			}
+			if isDone {
 				task = doneStyle.Render(task)
+			} else if isOverdue {
+				task = overdueStyle.Render(task)
 			}
 
-			prioLabel := ""
+			// style labels
+			var prioLabel string
 			switch prio {
 			case "[urgent]":
 				prioLabel = urStyle.Render("[urgent]")
@@ -413,20 +546,29 @@ func (m model) View() string {
 			case "[low]":
 				prioLabel = lowStyle.Render("[low]")
 			}
+			dueLabel := dueDate
+			if isOverdue && !isDone && dueDate != "" {
+				dueLabel = overdueStyle.Render(dueDate)
+			}
 
-			b.WriteString(fmt.Sprintf("%s%-*d%-*s%-*s\n",
+			row := fmt.Sprintf("%s%-*d%s%-*s%s%-*s%s%-*s",
 				rowPrefix,
-				numCol, i+1,
-				taskCol, task,
+				numCol, i+1, sep,
+				taskCol, task, sep,
+				dueCol, dueLabel, sep,
 				prioCol, prioLabel,
-			))
+			)
+			b.WriteString(row + "\n")
 		}
 		b.WriteString("\n")
 	}
 
 	switch m.mode {
 	case modeAdd:
-		if m.prioritySelect {
+		if m.dueDateSelect {
+			b.WriteString("Add mode — enter due date (YYYY-MM-DD) or leave blank and press Enter\n")
+			b.WriteString("Due date: " + m.dueDateInput + "\n")
+		} else if m.prioritySelect {
 			b.WriteString("Select priority: ←/→ and Enter (urgent, medium, low)\n")
 			prioNames := []string{"[urgent]", "[medium]", "[low]"}
 			styles := []lipgloss.Style{urStyle, medStyle, lowStyle}
@@ -443,7 +585,10 @@ func (m model) View() string {
 			b.WriteString(m.textInput.View() + "\n")
 		}
 	case modeEdit:
-		if m.prioritySelect {
+		if m.dueDateSelect {
+			b.WriteString("Edit mode — enter due date (YYYY-MM-DD) or leave blank and press Enter\n")
+			b.WriteString("Due date: " + m.dueDateInput + "\n")
+		} else if m.prioritySelect {
 			b.WriteString("Select priority: ←/→ and Enter (urgent, medium, low)\n")
 			prioNames := []string{"[urgent]", "[medium]", "[low]"}
 			styles := []lipgloss.Style{urStyle, medStyle, lowStyle}
