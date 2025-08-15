@@ -40,6 +40,10 @@ type model struct {
 	prioritySelect bool
 	dueDateInput   string // for due date entry
 	dueDateSelect  bool   // true if entering due date
+	// Undo support
+	lastDeletedTodo  string
+	lastDeletedIndex int
+	canUndo          bool
 }
 
 func initialModel() model {
@@ -149,6 +153,22 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.mode = modeConfirmDelete
 					m.confirmIdx = m.cursor
 					m.status = fmt.Sprintf("Delete todo #%d? (y/n)", m.confirmIdx+1)
+				}
+			case "u":
+				if m.canUndo {
+					// Restore last deleted todo
+					if m.lastDeletedIndex < 0 || m.lastDeletedIndex > len(m.todos) {
+						m.lastDeletedIndex = len(m.todos)
+					}
+					before := m.todos[:m.lastDeletedIndex]
+					after := m.todos[m.lastDeletedIndex:]
+					m.todos = append(append(before, m.lastDeletedTodo), after...)
+					saveTodos(m.todos)
+					m.status = "Undo: restored deleted todo"
+					m.cursor = m.lastDeletedIndex
+					m.canUndo = false
+				} else {
+					m.status = "Nothing to undo"
 				}
 			case "D":
 				if len(m.todos) > 0 {
@@ -400,9 +420,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch k {
 			case "y", "enter":
 				if m.confirmIdx >= 0 && m.confirmIdx < len(m.todos) {
+					// Save for undo
+					m.lastDeletedTodo = m.todos[m.confirmIdx]
+					m.lastDeletedIndex = m.confirmIdx
+					m.canUndo = true
 					m.todos = append(m.todos[:m.confirmIdx], m.todos[m.confirmIdx+1:]...)
 					saveTodos(m.todos)
-					m.status = "Todo deleted"
+					m.status = "Todo deleted (press 'u' to undo)"
 					if m.cursor >= len(m.todos) && m.cursor > 0 {
 						m.cursor--
 					}
@@ -417,6 +441,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "y", "enter":
 				m.todos = []string{}
 				saveTodos(m.todos)
+				// Clear undo buffer for delete all
+				m.canUndo = false
 				m.status = "All todos deleted"
 				m.mode = modeView
 				m.cursor = 0
@@ -613,7 +639,7 @@ func (m model) View() string {
 	b.WriteString("\n")
 	b.WriteString(statusStyle.Render(m.status))
 	b.WriteString("\n\n")
-	b.WriteString("Controls: j/down k/up a:add d:delete D:delete-all e:edit <space>:toggle r:reload q:quit\n")
+	b.WriteString("Controls: j/down k/up a:add d:delete D:delete-all e:edit <space>:toggle r:reload u:undo q:quit\n")
 
 	return b.String()
 }
