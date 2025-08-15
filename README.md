@@ -5,6 +5,7 @@ A simple terminal-based Todo List application written in Go, using the Bubble Te
 ## Features
 
 - Add, view, edit, and delete todos from a modern, colorful terminal interface
+- **Undo delete**: Accidentally deleted a todo? Press `u` to restore the last deleted item
 - **Edit mode**: Edit any todo, including its text, due date, and priority
 - **Due dates**: Assign an optional due date (YYYY-MM-DD) to each todo
 - **Overdue highlighting**: Todos past their due date are shown in red (unless completed)
@@ -23,6 +24,7 @@ A simple terminal-based Todo List application written in Go, using the Bubble Te
 - `space`: Toggle completion (tick/untick)
 - `a`: Add a new todo (enter text, then due date, then select priority with ←/→ and Enter)
 - `d`: Delete the selected todo
+- `u`: Undo the last todo deletion
 - `D`: Delete all todos (with confirmation)
 - `e`: Edit a todo (edit text, due date, and priority)
 - `r`: Reload todos from file
@@ -60,13 +62,7 @@ Your todos will be saved in `todolist.txt` in the same directory.
 
 ### Recent Updates
 
-- **Edit mode**: Edit todo text, due date, and priority
-- **Due dates**: Add/edit due dates for todos; overdue tasks are highlighted
-- **Improved add flow**: Add text, then due date, then priority
-- **Reload**: Reload todos from file with `r`
-- **Overdue highlighting**: Overdue tasks are shown in red
-- **Table columns**: Now includes due date and priority columns
-- **Delete all**: Press `D` to delete all todos (with confirmation)
+- **Undo delete**: Press `u` to restore the last deleted todo
 
 ## License
 
