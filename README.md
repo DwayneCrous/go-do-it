@@ -1,6 +1,18 @@
 # Go-Do-It
 
+
 A simple terminal-based Todo List application written in Go, using the Bubble Tea TUI framework.
+
+## Project Structure
+
+The codebase is modular and organized for maintainability:
+
+- `godoit.go` — Entry point, contains only `main()`
+- `model.go` — Data model and state
+- `todo.go` — Todo file I/O and helpers
+- `update.go` — All update logic (event handling)
+- `ui.go` — All view logic (UI rendering)
+- `init.go` — Model initialization for Bubble Tea
 
 ## Features
 
@@ -45,9 +57,9 @@ A simple terminal-based Todo List application written in Go, using the Bubble Te
    go get github.com/charmbracelet/bubbles/textinput
    go get github.com/charmbracelet/lipgloss
    ```
-3. Build the program:
+3. Build the program (from the project directory):
    ```sh
-   go build -o godoit.exe godoit.go
+   go build -o godoit.exe
    ```
 
 ## Usage
