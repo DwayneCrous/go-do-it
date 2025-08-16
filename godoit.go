@@ -24,6 +24,7 @@ const (
 	modeConfirmDelete
 	modeConfirmDeleteAll
 	modeEdit
+	modeHelp
 )
 
 type model struct {
@@ -130,6 +131,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch k {
 			case "ctrl+c", "q":
 				return m, tea.Quit
+			case "h":
+				m.mode = modeHelp
+				m.status = "Help menu (press any key or 'esc' to return)"
 			case "j", "down":
 				if m.cursor < len(m.todos)-1 {
 					m.cursor++
@@ -208,6 +212,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.todos = loadTodos()
 				m.status = "Reloaded todos from file"
 			}
+		case modeHelp:
+			// Any key or esc returns to view mode
+			m.mode = modeView
+			m.status = "Exited help menu"
 
 		case modeAdd:
 
@@ -470,7 +478,30 @@ func (m model) View() string {
 	lowStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#00CC44")).Bold(true)
 	overdueStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#FF0000")).Bold(true).Underline(true)
 
-	// Column widths
+	if m.mode == modeHelp {
+		// Help menu view
+		var b strings.Builder
+		b.WriteString(headerStyle.Render(" Go-Do-It — Help Menu ") + "\n\n")
+		b.WriteString("Keybindings:\n\n")
+		b.WriteString("  j / ↓         Move cursor down\n")
+		b.WriteString("  k / ↑         Move cursor up\n")
+		b.WriteString("  a             Add a new todo\n")
+		b.WriteString("  d             Delete selected todo\n")
+		b.WriteString("  u             Undo last todo deletion\n")
+		b.WriteString("  D             Delete all todos\n")
+		b.WriteString("  e             Edit selected todo\n")
+		b.WriteString("  <space>       Toggle completion\n")
+		b.WriteString("  r             Reload todos from file\n")
+		b.WriteString("  h             Show this help menu\n")
+		b.WriteString("  q             Quit the application\n")
+		b.WriteString("  esc/any key   Return to todo list\n")
+		b.WriteString("\n")
+		b.WriteString(statusStyle.Render("Press any key or 'esc' to return to your todos."))
+		b.WriteString("\n")
+		return b.String()
+	}
+
+	// ...existing code for todo list view...
 	numCol := 4   // "#"
 	taskCol := 44 // "Todo"
 	dueCol := 12  // "YYYY-MM-DD"
@@ -639,7 +670,7 @@ func (m model) View() string {
 	b.WriteString("\n")
 	b.WriteString(statusStyle.Render(m.status))
 	b.WriteString("\n\n")
-	b.WriteString("Controls: j/down k/up a:add d:delete D:delete-all e:edit <space>:toggle r:reload u:undo q:quit\n")
+	b.WriteString("Controls: j/down k/up a:add d:delete D:delete-all e:edit <space>:toggle r:reload u:undo h:help q:quit\n")
 
 	return b.String()
 }
