@@ -39,9 +39,9 @@ type model struct {
 	editIdx        int
 	priorityInput  int
 	prioritySelect bool
-	dueDateInput   string // for due date entry
-	dueDateSelect  bool   // true if entering due date
-	// Undo support
+	dueDateInput   string
+	dueDateSelect  bool
+
 	lastDeletedTodo  string
 	lastDeletedIndex int
 	canUndo          bool
@@ -160,7 +160,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			case "u":
 				if m.canUndo {
-					// Restore last deleted todo
+
 					if m.lastDeletedIndex < 0 || m.lastDeletedIndex > len(m.todos) {
 						m.lastDeletedIndex = len(m.todos)
 					}
@@ -213,7 +213,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.status = "Reloaded todos from file"
 			}
 		case modeHelp:
-			// Any key or esc returns to view mode
+
 			m.mode = modeView
 			m.status = "Exited help menu"
 
@@ -222,7 +222,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.dueDateSelect {
 				switch k {
 				case "enter":
-					// Validate date
+
 					due := strings.TrimSpace(m.dueDateInput)
 					if due != "" {
 						_, err := time.Parse("2006-01-02", due)
@@ -275,7 +275,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						}
 						due := ""
 						if m.dueDateInput != "" {
-							due = " @" + m.dueDateInput // note the leading space
+							due = " @" + m.dueDateInput
 						}
 						entry := "[ ] " + val + due + " " + prio + " #" + id
 						m.todos = append(m.todos, entry)
@@ -371,7 +371,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						if m.dueDateInput != "" {
 							due = " @" + m.dueDateInput
 						} else {
-							// Remove any existing due date (with its leading space)
+
 							if atIdx := strings.Index(old, " @"); atIdx != -1 {
 								end := atIdx + 12
 								if end > len(old) {
@@ -379,7 +379,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 								}
 								old = old[:atIdx] + old[end:]
 							} else if atIdx := strings.Index(old, "@"); atIdx != -1 {
-								// fallback if old data had no leading space
+
 								end := atIdx + 11
 								if end > len(old) {
 									end = len(old)
@@ -407,7 +407,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			var cmd tea.Cmd
 			m.textInput, cmd = m.textInput.Update(msg)
 			if k == "enter" {
-				// Try to extract due date from old
+
 				old := m.todos[m.editIdx]
 				m.dueDateInput = ""
 				if atIdx := strings.Index(old, " @"); atIdx != -1 {
@@ -428,7 +428,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch k {
 			case "y", "enter":
 				if m.confirmIdx >= 0 && m.confirmIdx < len(m.todos) {
-					// Save for undo
+
 					m.lastDeletedTodo = m.todos[m.confirmIdx]
 					m.lastDeletedIndex = m.confirmIdx
 					m.canUndo = true
@@ -449,7 +449,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "y", "enter":
 				m.todos = []string{}
 				saveTodos(m.todos)
-				// Clear undo buffer for delete all
+
 				m.canUndo = false
 				m.status = "All todos deleted"
 				m.mode = modeView
@@ -479,7 +479,6 @@ func (m model) View() string {
 	overdueStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#FF0000")).Bold(true).Underline(true)
 
 	if m.mode == modeHelp {
-		// Help menu view
 		var b strings.Builder
 		b.WriteString(headerStyle.Render(" Go-Do-It — Help Menu ") + "\n\n")
 		b.WriteString("Keybindings:\n\n")
@@ -501,14 +500,13 @@ func (m model) View() string {
 		return b.String()
 	}
 
-	// ...existing code for todo list view...
-	numCol := 4   // "#"
-	taskCol := 44 // "Todo"
-	dueCol := 12  // "YYYY-MM-DD"
-	prioCol := 10 // "[medium]"
+	numCol := 4
+	taskCol := 44
+	dueCol := 12
+	prioCol := 10
 
 	space := " "
-	sep := space // one space separator between columns
+	sep := space
 
 	var b strings.Builder
 	b.WriteString(headerStyle.Render(" Go-Do-It — Bubble Tea TUI ") + "\n\n")
@@ -534,7 +532,6 @@ func (m model) View() string {
 			display := t
 			task := display
 
-			// priority detection
 			prio := "[medium]"
 			if strings.Contains(display, "[urgent]") {
 				prio = "[urgent]"
@@ -542,24 +539,21 @@ func (m model) View() string {
 				prio = "[low]"
 			}
 
-			// due date extraction: look for " @"
 			dueDate := ""
 			if atIdx := strings.Index(display, " @"); atIdx != -1 {
-				end := atIdx + 12 // space + '@' + 10 chars (YYYY-MM-DD)
+				end := atIdx + 12
 				if end > len(display) {
 					end = len(display)
 				}
 				dueDate = strings.TrimSpace(display[atIdx+2 : end])
 			}
 
-			// remove trailing id for task text
 			if idIdx := strings.LastIndex(display, " #"); idIdx != -1 {
 				task = display[:idIdx]
 			} else {
 				task = display
 			}
 
-			// strip priority and due date from task
 			if pidx := strings.LastIndex(task, "["); pidx != -1 {
 				task = strings.TrimSpace(task[:pidx])
 			}
@@ -567,9 +561,7 @@ func (m model) View() string {
 				task = strings.TrimSpace(task[:atIdx])
 			}
 
-			// ellipsis if needed
 			if lipgloss.Width(task) > taskCol {
-				// naive cut that keeps width
 				r := []rune(task)
 				if len(r) > taskCol-3 {
 					r = r[:taskCol-3]
@@ -577,7 +569,6 @@ func (m model) View() string {
 				task = string(r) + "..."
 			}
 
-			// status styling
 			isDone := strings.HasPrefix(display, "[x]")
 			isOverdue := false
 			if dueDate != "" && !isDone {
@@ -593,7 +584,6 @@ func (m model) View() string {
 				task = overdueStyle.Render(task)
 			}
 
-			// style labels
 			var prioLabel string
 			switch prio {
 			case "[urgent]":
