@@ -1,11 +1,6 @@
-# Go-Do-It
-
-
-A simple terminal-based Todo List application written in Go, using the Bubble Tea TUI framework.
-
 # Go-Do-It 📝✨
 
-The codebase is modular and organized for maintainability:
+A simple terminal-based Todo List application written in Go, using the Bubble Tea TUI framework.
 
 ## 🗂️ Project Structure
 - `model.go` — Data model and state
@@ -76,16 +71,12 @@ Run the program from your terminal:
 ---
 
 ## 📄 License
-### Recent Updates
-Inspired by the Bubble Tea TUI framework by Charmbracelet. 🍵
-
-- **Tags**: You can now add tags to todos during add and edit flows
-- **Help menu**: Press `h` to view a dedicated help screen with all keybindings
-
-## License
 
 MIT License
 
----
+## Recent Updates
+- **Tags**: You can now add tags to todos during add and edit flows
+- **Help menu**: Press `h` to view a dedicated help screen with all keybindings
 
-Inspired by the Bubble Tea TUI framework by Charmbracelet.
+---
+Inspired by the Bubble Tea TUI framework by Charmbracelet. 🍵
