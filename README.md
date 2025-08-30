@@ -74,9 +74,5 @@ Run the program from your terminal:
 
 MIT License
 
-## Recent Updates
-- **Tags**: You can now add tags to todos during add and edit flows
-- **Help menu**: Press `h` to view a dedicated help screen with all keybindings
-
 ---
 Inspired by the Bubble Tea TUI framework by Charmbracelet. 🍵
