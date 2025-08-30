@@ -14,32 +14,35 @@ The codebase is modular and organized for maintainability:
 - `ui.go` — All view logic (UI rendering)
 - `init.go` — Model initialization for Bubble Tea
 
+
 ## Features
 
 - Add, view, edit, and delete todos from a modern, colorful terminal interface
+- **Tags**: Assign tags to each todo for better organization and filtering
 - **Undo delete**: Accidentally deleted a todo? Press `u` to restore the last deleted item
 - **Help menu**: Press `h` to view a dedicated help screen with all keybindings
-- **Edit mode**: Edit any todo, including its text, due date, and priority
+- **Edit mode**: Edit any todo, including its text, due date, priority, and tags
 - **Due dates**: Assign an optional due date (YYYY-MM-DD) to each todo
 - **Overdue highlighting**: Todos past their due date are shown in red (unless completed)
 - **Priority selection**: Choose between **urgent** (red), **medium** (yellow), or **low** (green) for each task
 - **Delete all**: Remove all todos at once, with confirmation
 - **Reload**: Instantly reload todos from file without restarting
 - **Persistent storage**: Todos are saved to a local file (`todolist.txt`)
-- **Table-like formatting**: Todos are displayed with columns for number, task, due date, and priority
+- **Table-like formatting**: Todos are displayed with columns for number, task, due date, priority, and tags
 - **Keyboard navigation and controls**: Fast, Vim-like navigation and shortcuts
 - Built with Bubble Tea, Bubbles, and Lip Gloss for a beautiful TUI
+
 
 ## Controls
 
 - `j` / `down arrow`: Move cursor down
 - `k` / `up arrow`: Move cursor up
 - `space`: Toggle completion (tick/untick)
-- `a`: Add a new todo (enter text, then due date, then select priority with ←/→ and Enter)
+- `a`: Add a new todo (enter text, due date, priority, and tags)
 - `d`: Delete the selected todo
 - `u`: Undo the last todo deletion
 - `D`: Delete all todos (with confirmation)
-- `e`: Edit a todo (edit text, due date, and priority)
+- `e`: Edit a todo (edit text, due date, priority, and tags)
 - `r`: Reload todos from file
 - `h`: Show the help menu with all keybindings
 - `q`: Quit the application
@@ -74,10 +77,11 @@ Your todos will be saved in `todolist.txt` in the same directory.
 
 ---
 
+
 ### Recent Updates
 
+- **Tags**: You can now add tags to todos during add and edit flows
 - **Help menu**: Press `h` to view a dedicated help screen with all keybindings
-- **Undo delete**: Press `u` to restore the last deleted todo
 
 ## License
 
