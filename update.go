@@ -1,28 +1,22 @@
 package main
 
 import (
-	"fmt"
-	"strconv"
 	"strings"
-	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// ...existing code...
 	switch msg := msg.(type) {
 
 	case tea.KeyMsg:
 		k := msg.String()
 
 		switch m.mode {
+		// ------------------ VIEW MODE ------------------
 		case modeView:
 			switch k {
-			case "ctrl+c", "q":
-				return m, tea.Quit
-			case "h":
-				m.mode = modeHelp
-				m.status = "Help menu (press any key or 'esc' to return)"
 			case "j", "down":
 				if m.cursor < len(m.todos)-1 {
 					m.cursor++
@@ -35,189 +29,108 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.mode = modeAdd
 				m.textInput.SetValue("")
 				m.textInput.Focus()
-				m.status = "Adding a new todo"
-				m.priorityInput = 1
-				m.prioritySelect = false
-				m.dueDateInput = ""
-				m.dueDateSelect = false
-				return m, m.textInput.Focus()
+				m.status = "Add a new todo. Type and press Enter."
 			case "d":
 				if len(m.todos) > 0 {
 					m.mode = modeConfirmDelete
 					m.confirmIdx = m.cursor
-					m.status = fmt.Sprintf("Delete todo #%d? (y/n)", m.confirmIdx+1)
-				}
-			case "u":
-				if m.canUndo {
-					if m.lastDeletedIndex < 0 || m.lastDeletedIndex > len(m.todos) {
-						m.lastDeletedIndex = len(m.todos)
-					}
-					before := m.todos[:m.lastDeletedIndex]
-					after := m.todos[m.lastDeletedIndex:]
-					m.todos = append(append(before, m.lastDeletedTodo), after...)
-					saveTodos(m.todos)
-					m.status = "Undo: restored deleted todo"
-					m.cursor = m.lastDeletedIndex
-					m.canUndo = false
-				} else {
-					m.status = "Nothing to undo"
+					m.status = "Delete this todo? (y/n)"
 				}
 			case "D":
 				if len(m.todos) > 0 {
 					m.mode = modeConfirmDeleteAll
-					m.status = "Are you sure you want to delete ALL todos? (y/n)"
+					m.status = "Delete ALL todos? (y/n)"
 				}
 			case "e":
 				if len(m.todos) > 0 {
 					m.mode = modeEdit
 					m.editIdx = m.cursor
-					todo := m.todos[m.editIdx]
-					if idx := strings.LastIndex(todo, " #"); idx != -1 {
-						todo = todo[4:idx]
-					}
-					m.textInput.SetValue(todo)
+					// Pre-populate the text input with the current todo text
+					currentTodo := m.todos[m.cursor].Text
+					m.textInput.SetValue(currentTodo)
 					m.textInput.Focus()
-					m.status = "Editing todo"
-					return m, m.textInput.Focus()
+					m.status = "Edit todo. Press Enter to continue."
 				}
 			case " ":
 				if len(m.todos) > 0 {
-					todo := m.todos[m.cursor]
-					done := strings.HasPrefix(todo, "[x]")
-					rest := todo[3:]
-					if strings.HasPrefix(rest, " ") {
-						rest = rest[1:]
-					}
-					if done {
-						m.todos[m.cursor] = "[ ] " + rest
-					} else {
-						m.todos[m.cursor] = "[x] " + rest
-					}
+					m.todos[m.cursor].Done = !m.todos[m.cursor].Done
 					saveTodos(m.todos)
-					m.status = "Toggled completion"
+					m.status = "Toggled completion."
 				}
 			case "r":
 				m.todos = loadTodos()
-				m.status = "Reloaded todos from file"
-			}
-		case modeHelp:
-			m.mode = modeView
-			m.status = "Exited help menu"
-		case modeAdd:
-			if m.dueDateSelect {
-				switch k {
-				case "enter":
-					due := strings.TrimSpace(m.dueDateInput)
-					if due != "" {
-						_, err := time.Parse("2006-01-02", due)
-						if err != nil {
-							m.status = "Invalid date format. Use YYYY-MM-DD."
-							return m, nil
-						}
+				m.status = "Todos reloaded."
+			case "u":
+				if m.canUndo {
+					idx := m.lastDeletedIndex
+					if idx < 0 || idx > len(m.todos) {
+						idx = len(m.todos)
 					}
-					m.dueDateSelect = false
-					m.prioritySelect = true
-					m.status = "Select priority: ←/→ and Enter (urgent, medium, low)"
-				case "esc":
-					m.status = "Add cancelled"
-					m.mode = modeView
-					m.dueDateSelect = false
-				case "backspace":
-					if len(m.dueDateInput) > 0 {
-						m.dueDateInput = m.dueDateInput[:len(m.dueDateInput)-1]
-					}
-				default:
-					if len(k) == 1 && ((k[0] >= '0' && k[0] <= '9') || k[0] == '-') && len(m.dueDateInput) < 10 {
-						m.dueDateInput += k
-					}
+					m.todos = append(m.todos[:idx], append([]Todo{m.lastDeletedTodo}, m.todos[idx:]...)...)
+					saveTodos(m.todos)
+					m.canUndo = false
+					m.status = "Undo successful."
 				}
-				return m, nil
+			case "h":
+				m.mode = modeHelp
+			case "q":
+				return m, tea.Quit
 			}
-			if m.prioritySelect {
-				switch k {
-				case "left":
-					if m.priorityInput > 0 {
-						m.priorityInput--
-					}
-				case "right":
-					if m.priorityInput < 2 {
-						m.priorityInput++
-					}
-				case "enter":
+
+			// ------------------ ADD MODE ------------------
+		case modeAdd:
+			var cmd tea.Cmd = nil
+			// Step 1: Enter todo text
+			if !m.dueDateSelect && !m.prioritySelect && !m.tagsSelect {
+				m.textInput, cmd = m.textInput.Update(msg)
+				if k == "enter" {
 					val := strings.TrimSpace(m.textInput.Value())
 					if val != "" {
-						id := strconv.FormatInt(time.Now().UnixNano(), 10)[8:]
-						var prio string
-						switch m.priorityInput {
-						case 0:
-							prio = "[urgent]"
-						case 1:
-							prio = "[medium]"
-						case 2:
-							prio = "[low]"
-						}
-						due := ""
-						if m.dueDateInput != "" {
-							due = " @" + m.dueDateInput
-						}
-						entry := "[ ] " + val + due + " " + prio + " #" + id
-						m.todos = append(m.todos, entry)
-						saveTodos(m.todos)
-						m.status = "Added todo"
+						// Store the todo text in tempTodoText
+						m.tempTodoText = val
+						m.dueDateInput = ""
+						m.priorityInput = 1
+						m.tagsInput = ""
+						m.dueDateSelect = true
+						m.status = "Enter due date (YYYY-MM-DD) or leave blank and press Enter: "
+						m.textInput.SetValue("")
+						return m, cmd
 					} else {
-						m.status = "Empty todo not added"
+						m.status = "Empty todo not added."
+						m.mode = modeView
+						m.textInput.Blur()
+						return m, cmd
 					}
-					m.mode = modeView
-					m.prioritySelect = false
-					m.dueDateInput = ""
-				case "esc":
-					m.status = "Add cancelled"
-					m.mode = modeView
-					m.prioritySelect = false
-					m.dueDateInput = ""
 				}
-				return m, nil
+				if k == "esc" {
+					m.mode = modeView
+					m.status = "Add cancelled."
+					m.textInput.Blur()
+					return m, cmd
+				}
+				return m, cmd
 			}
-			var cmd tea.Cmd
-			m.textInput, cmd = m.textInput.Update(msg)
-			if k == "enter" {
-				m.dueDateSelect = true
-				m.status = "Enter due date (YYYY-MM-DD) or leave blank and press Enter: "
-			} else if k == "esc" {
-				m.status = "Add cancelled"
-				m.mode = modeView
-			}
-			return m, cmd
-		case modeEdit:
+			// Step 2: Due date
 			if m.dueDateSelect {
-				switch k {
-				case "enter":
-					due := strings.TrimSpace(m.dueDateInput)
-					if due != "" {
-						_, err := time.Parse("2006-01-02", due)
-						if err != nil {
-							m.status = "Invalid date format. Use YYYY-MM-DD."
-							return m, nil
-						}
-					}
+				m.textInput, cmd = m.textInput.Update(msg)
+				if k == "enter" {
+					m.dueDateInput = strings.TrimSpace(m.textInput.Value())
 					m.dueDateSelect = false
 					m.prioritySelect = true
-					m.status = "Select priority: ←/→ and Enter (urgent, medium, low)"
-				case "esc":
-					m.status = "Edit cancelled"
-					m.mode = modeView
-					m.dueDateSelect = false
-				case "backspace":
-					if len(m.dueDateInput) > 0 {
-						m.dueDateInput = m.dueDateInput[:len(m.dueDateInput)-1]
-					}
-				default:
-					if len(k) == 1 && ((k[0] >= '0' && k[0] <= '9') || k[0] == '-') && len(m.dueDateInput) < 10 {
-						m.dueDateInput += k
-					}
+					m.status = "Select priority with ←/→, then press Enter"
+					m.textInput.SetValue("")
+					return m, cmd
 				}
-				return m, nil
+				if k == "esc" {
+					m.dueDateSelect = false
+					m.mode = modeView
+					m.status = "Add cancelled."
+					m.textInput.Blur()
+					return m, cmd
+				}
+				return m, cmd
 			}
+			// Step 3: Priority
 			if m.prioritySelect {
 				switch k {
 				case "left":
@@ -229,80 +142,192 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						m.priorityInput++
 					}
 				case "enter":
-					val := strings.TrimSpace(m.textInput.Value())
-					if val != "" && m.editIdx >= 0 && m.editIdx < len(m.todos) {
-						old := m.todos[m.editIdx]
-						id := ""
-						prefix := "[ ] "
-						if strings.HasPrefix(old, "[x]") {
-							prefix = "[x] "
-						}
-						if idx := strings.LastIndex(old, " #"); idx != -1 {
-							id = old[idx:]
-						}
-						var prio string
-						switch m.priorityInput {
-						case 0:
-							prio = "[urgent]"
-						case 1:
-							prio = "[medium]"
-						case 2:
-							prio = "[low]"
-						}
-						due := ""
-						if m.dueDateInput != "" {
-							due = " @" + m.dueDateInput
-						} else {
-							if atIdx := strings.Index(old, " @"); atIdx != -1 {
-								end := atIdx + 12
-								if end > len(old) {
-									end = len(old)
-								}
-								old = old[:atIdx] + old[end:]
-							} else if atIdx := strings.Index(old, "@"); atIdx != -1 {
-								end := atIdx + 11
-								if end > len(old) {
-									end = len(old)
-								}
-								old = strings.TrimSpace(old[:atIdx] + old[end:])
-							}
-						}
-						m.todos[m.editIdx] = prefix + val + due + " " + prio + id
-						saveTodos(m.todos)
-						m.status = "Todo edited"
-					} else {
-						m.status = "Edit cancelled or empty"
-					}
-					m.mode = modeView
 					m.prioritySelect = false
-					m.dueDateInput = ""
+					m.tagsSelect = true
+					m.status = "Enter tags (comma separated) or leave blank and press Enter: "
+					m.textInput.SetValue("")
+					return m, nil
 				case "esc":
-					m.status = "Edit cancelled"
-					m.mode = modeView
 					m.prioritySelect = false
-					m.dueDateInput = ""
+					m.mode = modeView
+					m.status = "Add cancelled."
+					m.textInput.Blur()
+					return m, nil
 				}
 				return m, nil
 			}
-			var cmd tea.Cmd
-			m.textInput, cmd = m.textInput.Update(msg)
-			if k == "enter" {
-				old := m.todos[m.editIdx]
-				m.dueDateInput = ""
-				if atIdx := strings.Index(old, " @"); atIdx != -1 {
-					end := atIdx + 12
-					if end > len(old) {
-						end = len(old)
+			// Step 4: Tags
+			if m.tagsSelect {
+				m.textInput, cmd = m.textInput.Update(msg)
+				if k == "enter" {
+					m.tagsInput = strings.TrimSpace(m.textInput.Value())
+					// Add the new todo with all fields
+					priority := "medium"
+					if m.priorityInput == 0 {
+						priority = "urgent"
+					} else if m.priorityInput == 2 {
+						priority = "low"
 					}
-					m.dueDateInput = strings.TrimSpace(old[atIdx+2 : end])
+					tags := []string{}
+					if m.tagsInput != "" {
+						tags = strings.Split(m.tagsInput, ",")
+						for i := range tags {
+							tags[i] = strings.TrimSpace(tags[i])
+						}
+					}
+					m.todos = append(m.todos, Todo{
+						Text:     m.tempTodoText,
+						DueDate:  m.dueDateInput,
+						Priority: priority,
+						Tags:     tags,
+						Done:     false,
+					})
+					saveTodos(m.todos)
+					m.status = "Todo added!"
+					m.mode = modeView
+					m.tagsSelect = false
+					m.textInput.Blur()
+					return m, cmd
 				}
-				m.dueDateSelect = true
-				m.status = "Enter due date (YYYY-MM-DD) or leave blank and press Enter: "
-			} else if k == "esc" {
-				m.status = "Edit cancelled"
-				m.mode = modeView
+				if k == "esc" {
+					m.tagsSelect = false
+					m.mode = modeView
+					m.status = "Add cancelled."
+					m.textInput.Blur()
+					return m, cmd
+				}
+				return m, cmd
 			}
-			return m, cmd
+
+		// ------------------ EDIT MODE ------------------
+		case modeEdit:
+			var cmd tea.Cmd
+			// Step 1: Enter todo text
+			if !m.dueDateSelect && !m.prioritySelect && !m.tagsSelect {
+				m.textInput, cmd = m.textInput.Update(msg)
+				if k == "enter" {
+					val := strings.TrimSpace(m.textInput.Value())
+					if val != "" && m.editIdx >= 0 && m.editIdx < len(m.todos) {
+						// Store the edited text
+						m.tempTodoText = val
+						// Pre-populate with existing values
+						m.dueDateInput = m.todos[m.editIdx].DueDate
+						// Set priority based on existing todo
+						switch m.todos[m.editIdx].Priority {
+						case "urgent":
+							m.priorityInput = 0
+						case "low":
+							m.priorityInput = 2
+						default:
+							m.priorityInput = 1
+						}
+						m.tagsInput = strings.Join(m.todos[m.editIdx].Tags, ", ")
+						m.dueDateSelect = true
+						m.status = "Enter due date (YYYY-MM-DD) or leave blank and press Enter: "
+						m.textInput.SetValue(m.dueDateInput)
+						return m, cmd
+					} else {
+						m.status = "Edit cancelled or empty"
+						m.mode = modeView
+						m.textInput.Blur()
+						return m, cmd
+					}
+				}
+				if k == "esc" {
+					m.status = "Edit cancelled"
+					m.mode = modeView
+					m.textInput.Blur()
+					return m, cmd
+				}
+				return m, cmd
+			}
+			// Step 2: Due date
+			if m.dueDateSelect {
+				m.textInput, cmd = m.textInput.Update(msg)
+				if k == "enter" {
+					m.dueDateInput = strings.TrimSpace(m.textInput.Value())
+					m.dueDateSelect = false
+					m.prioritySelect = true
+					m.status = "Select priority with ←/→, then press Enter"
+					return m, cmd
+				}
+				if k == "esc" {
+					m.dueDateSelect = false
+					m.mode = modeView
+					m.status = "Edit cancelled"
+					m.textInput.Blur()
+					return m, cmd
+				}
+				return m, cmd
+			}
+			// Step 3: Priority
+			if m.prioritySelect {
+				switch k {
+				case "left":
+					if m.priorityInput > 0 {
+						m.priorityInput--
+					}
+				case "right":
+					if m.priorityInput < 2 {
+						m.priorityInput++
+					}
+				case "enter":
+					m.prioritySelect = false
+					m.tagsSelect = true
+					m.status = "Enter tags (comma separated) or leave blank and press Enter: "
+					m.textInput.SetValue(m.tagsInput)
+					return m, nil
+				case "esc":
+					m.prioritySelect = false
+					m.mode = modeView
+					m.status = "Edit cancelled"
+					m.textInput.Blur()
+					return m, nil
+				}
+				return m, nil
+			}
+			// Step 4: Tags
+			if m.tagsSelect {
+				m.textInput, cmd = m.textInput.Update(msg)
+				if k == "enter" {
+					m.tagsInput = strings.TrimSpace(m.textInput.Value())
+					// Update the todo with all fields
+					priority := "medium"
+					if m.priorityInput == 0 {
+						priority = "urgent"
+					} else if m.priorityInput == 2 {
+						priority = "low"
+					}
+					tags := []string{}
+					if m.tagsInput != "" {
+						tags = strings.Split(m.tagsInput, ",")
+						for i := range tags {
+							tags[i] = strings.TrimSpace(tags[i])
+						}
+					}
+					// Update the existing todo
+					m.todos[m.editIdx].Text = m.tempTodoText
+					m.todos[m.editIdx].DueDate = m.dueDateInput
+					m.todos[m.editIdx].Priority = priority
+					m.todos[m.editIdx].Tags = tags
+					saveTodos(m.todos)
+					m.status = "Todo edited!"
+					m.mode = modeView
+					m.tagsSelect = false
+					m.textInput.Blur()
+					return m, cmd
+				}
+				if k == "esc" {
+					m.tagsSelect = false
+					m.mode = modeView
+					m.status = "Edit cancelled"
+					m.textInput.Blur()
+					return m, cmd
+				}
+				return m, cmd
+			}
+
+		// ------------------ CONFIRM DELETE ------------------
 		case modeConfirmDelete:
 			switch k {
 			case "y", "enter":
@@ -322,10 +347,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.mode = modeView
 				m.status = "Delete cancelled"
 			}
+
+		// ------------------ CONFIRM DELETE ALL ------------------
 		case modeConfirmDeleteAll:
 			switch k {
 			case "y", "enter":
-				m.todos = []string{}
+				m.todos = []Todo{}
 				saveTodos(m.todos)
 				m.canUndo = false
 				m.status = "All todos deleted"
@@ -335,11 +362,19 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.mode = modeView
 				m.status = "Delete all cancelled"
 			}
+
+		// ------------------ HELP MODE ------------------
+		case modeHelp:
+			// Any key returns to view mode
+			m.mode = modeView
+			m.status = "Returned from help."
 		}
 
+	// ------------------ WINDOW RESIZE ------------------
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
 	}
+
 	return m, nil
 }

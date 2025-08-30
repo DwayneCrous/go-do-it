@@ -1,55 +1,75 @@
 package main
 
 import (
-    "github.com/charmbracelet/bubbles/textinput"
+	"github.com/charmbracelet/bubbles/textinput"
 )
 
 type mode int
 
 const (
-    modeView mode = iota
-    modeAdd
-    modeConfirmDelete
-    modeConfirmDeleteAll
-    modeEdit
-    modeHelp
+	modeView mode = iota
+	modeAdd
+	modeConfirmDelete
+	modeConfirmDeleteAll
+	modeEdit
+	modeHelp
 )
 
-type model struct {
-    todos          []string
-    cursor         int
-    mode           mode
-    textInput      textinput.Model
-    status         string
-    width          int
-    height         int
-    confirmIdx     int
-    editIdx        int
-    priorityInput  int
-    prioritySelect bool
-    dueDateInput   string
-    dueDateSelect  bool
+type Todo struct {
+	Text     string
+	Priority string // "urgent", "medium", "low"
+	DueDate  string // YYYY-MM-DD
+	Done     bool
+	Tags     []string
+}
 
-    lastDeletedTodo  string
-    lastDeletedIndex int
-    canUndo          bool
+type model struct {
+	todos          []Todo
+	cursor         int
+	mode           mode
+	textInput      textinput.Model
+	status         string
+	width          int
+	height         int
+	confirmIdx     int
+	editIdx        int
+	priorityInput  int
+	prioritySelect bool
+	dueDateInput   string
+	dueDateSelect  bool
+	tagsInput      string
+	tagsSelect     bool
+	tempTodoText   string // Store todo text during add process
+
+	lastDeletedTodo  Todo
+	lastDeletedIndex int
+	canUndo          bool
 }
 
 func initialModel() model {
-    ti := textinput.New()
-    ti.Placeholder = "Type a todo and press Enter"
-    ti.CharLimit = 256
-    ti.Width = 50
+	ti := textinput.New()
+	ti.Placeholder = "Type a todo and press Enter"
+	ti.CharLimit = 256
+	ti.Width = 50
 
-    return model{
-        todos:          loadTodos(),
-        cursor:         0,
-        mode:           modeView,
-        textInput:      ti,
-        status:         "Press 'a' to add, 'd' to delete, 'r' to reload, 'q' to quit.",
-        priorityInput:  1,
-        prioritySelect: false,
-        dueDateInput:   "",
-        dueDateSelect:  false,
-    }
+	return model{
+		todos:            loadTodos(),
+		cursor:           0,
+		mode:             modeView,
+		textInput:        ti,
+		status:           "Welcome to Go-Do-It! Press 'a' to add a todo.",
+		width:            0,
+		height:           0,
+		confirmIdx:       -1,
+		editIdx:          -1,
+		priorityInput:    1,
+		prioritySelect:   false,
+		dueDateInput:     "",
+		dueDateSelect:    false,
+		tagsInput:        "",
+		tagsSelect:       false,
+		lastDeletedTodo:  Todo{},
+		lastDeletedIndex: -1,
+		canUndo:          false,
+	}
 }

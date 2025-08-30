@@ -41,9 +41,10 @@ func (m model) View() string {
 	}
 
 	numCol := 4
-	taskCol := 44
+	taskCol := 30
 	dueCol := 12
 	prioCol := 10
+	tagsCol := 18
 
 	space := " "
 	sep := space
@@ -54,11 +55,12 @@ func (m model) View() string {
 	if len(m.todos) == 0 {
 		b.WriteString("No todos yet — press 'a' to add one.\n\n")
 	} else {
-		headerLine := fmt.Sprintf("%-*s%s%-*s%s%-*s%s%-*s",
+		headerLine := fmt.Sprintf("%-*s%s%-*s%s%-*s%s%-*s%s%-*s",
 			numCol, "#", sep,
 			taskCol, "Todo", sep,
 			dueCol, "Due Date", sep,
-			prioCol, "Priority",
+			prioCol, "Priority", sep,
+			tagsCol, "Tags",
 		)
 		b.WriteString(headerLine + "\n")
 		b.WriteString(strings.Repeat("-", len(headerLine)) + "\n")
@@ -68,38 +70,7 @@ func (m model) View() string {
 			if i == m.cursor && m.mode == modeView {
 				rowPrefix = cursorStyle.Render("> ")
 			}
-			display := t
-			task := display
-
-			prio := "[medium]"
-			if strings.Contains(display, "[urgent]") {
-				prio = "[urgent]"
-			} else if strings.Contains(display, "[low]") {
-				prio = "[low]"
-			}
-
-			dueDate := ""
-			if atIdx := strings.Index(display, " @"); atIdx != -1 {
-				end := atIdx + 12
-				if end > len(display) {
-					end = len(display)
-				}
-				dueDate = strings.TrimSpace(display[atIdx+2 : end])
-			}
-
-			if idIdx := strings.LastIndex(display, " #"); idIdx != -1 {
-				task = display[:idIdx]
-			} else {
-				task = display
-			}
-
-			if pidx := strings.LastIndex(task, "["); pidx != -1 {
-				task = strings.TrimSpace(task[:pidx])
-			}
-			if atIdx := strings.Index(task, " @"); atIdx != -1 {
-				task = strings.TrimSpace(task[:atIdx])
-			}
-
+			task := t.Text
 			if len([]rune(task)) > taskCol {
 				r := []rune(task)
 				if len(r) > taskCol-3 {
@@ -107,42 +78,42 @@ func (m model) View() string {
 				}
 				task = string(r) + "..."
 			}
-
-			isDone := strings.HasPrefix(display, "[x]")
 			isOverdue := false
-			if dueDate != "" && !isDone {
-				if due, err := time.Parse("2006-01-02", dueDate); err == nil {
+			if t.DueDate != "" && !t.Done {
+				if due, err := time.Parse("2006-01-02", t.DueDate); err == nil {
 					if due.Before(time.Now()) {
 						isOverdue = true
 					}
 				}
 			}
-			if isDone {
+			if t.Done {
 				task = doneStyle.Render(task)
 			} else if isOverdue {
 				task = overdueStyle.Render(task)
 			}
-
 			var prioLabel string
-			switch prio {
-			case "[urgent]":
+			switch t.Priority {
+			case "urgent":
 				prioLabel = urStyle.Render("[urgent]")
-			case "[medium]":
+			case "medium":
 				prioLabel = medStyle.Render("[medium]")
-			case "[low]":
+			case "low":
 				prioLabel = lowStyle.Render("[low]")
+			default:
+				prioLabel = t.Priority
 			}
-			dueLabel := dueDate
-			if isOverdue && !isDone && dueDate != "" {
-				dueLabel = overdueStyle.Render(dueDate)
+			dueLabel := t.DueDate
+			if isOverdue && !t.Done && t.DueDate != "" {
+				dueLabel = overdueStyle.Render(t.DueDate)
 			}
-
-			row := fmt.Sprintf("%s%-*d%s%-*s%s%-*s%s%-*s",
+			tagsLabel := strings.Join(t.Tags, ", ")
+			row := fmt.Sprintf("%s%-*d%s%-*s%s%-*s%s%-*s%s%-*s",
 				rowPrefix,
 				numCol, i+1, sep,
 				taskCol, task, sep,
 				dueCol, dueLabel, sep,
-				prioCol, prioLabel,
+				prioCol, prioLabel, sep,
+				tagsCol, tagsLabel,
 			)
 			b.WriteString(row + "\n")
 		}
@@ -153,7 +124,7 @@ func (m model) View() string {
 	case modeAdd:
 		if m.dueDateSelect {
 			b.WriteString("Add mode — enter due date (YYYY-MM-DD) or leave blank and press Enter\n")
-			b.WriteString("Due date: " + m.dueDateInput + "\n")
+			b.WriteString(m.textInput.View() + "\n")
 		} else if m.prioritySelect {
 			b.WriteString("Select priority: ←/→ and Enter (urgent, medium, low)\n")
 			prioNames := []string{"[urgent]", "[medium]", "[low]"}
@@ -166,6 +137,9 @@ func (m model) View() string {
 				}
 			}
 			b.WriteString("\n")
+		} else if m.tagsSelect {
+			b.WriteString("Add mode — enter tags (comma separated) or leave blank and press Enter\n")
+			b.WriteString(m.textInput.View() + "\n")
 		} else {
 			b.WriteString("Add mode — press Enter to continue, Esc to cancel\n")
 			b.WriteString(m.textInput.View() + "\n")
@@ -173,7 +147,7 @@ func (m model) View() string {
 	case modeEdit:
 		if m.dueDateSelect {
 			b.WriteString("Edit mode — enter due date (YYYY-MM-DD) or leave blank and press Enter\n")
-			b.WriteString("Due date: " + m.dueDateInput + "\n")
+			b.WriteString(m.textInput.View() + "\n")
 		} else if m.prioritySelect {
 			b.WriteString("Select priority: ←/→ and Enter (urgent, medium, low)\n")
 			prioNames := []string{"[urgent]", "[medium]", "[low]"}
@@ -186,6 +160,9 @@ func (m model) View() string {
 				}
 			}
 			b.WriteString("\n")
+		} else if m.tagsSelect {
+			b.WriteString("Edit mode — enter tags (comma separated) or leave blank and press Enter\n")
+			b.WriteString(m.textInput.View() + "\n")
 		} else {
 			b.WriteString("Edit mode — press Enter to continue, Esc to cancel\n")
 			b.WriteString(m.textInput.View() + "\n")
