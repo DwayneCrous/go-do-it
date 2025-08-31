@@ -17,6 +17,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// ------------------ VIEW MODE ------------------
 		case modeView:
 			switch k {
+			case "t":
+				m.mode = modeTagSearch
+				m.tagSearchInput.SetValue("")
+				m.tagSearchInput.Focus()
+				m.status = "Tag search: type to filter tags. Press esc to return."
+				return m, nil
 			case "j", "down":
 				if m.cursor < len(m.todos)-1 {
 					m.cursor++
@@ -76,6 +82,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "q":
 				return m, tea.Quit
 			}
+
+		// ------------------ TAG SEARCH MODE ------------------
+		case modeTagSearch:
+			var cmd tea.Cmd
+			m.tagSearchInput, cmd = m.tagSearchInput.Update(msg)
+			if k == "esc" {
+				m.mode = modeView
+				m.tagSearchInput.Blur()
+				m.status = "Returned from tag search."
+				return m, cmd
+			}
+			return m, cmd
 
 			// ------------------ ADD MODE ------------------
 		case modeAdd:

@@ -33,10 +33,47 @@ func (m model) View() string {
 		b.WriteString("  r             Reload todos from file\n")
 		b.WriteString("  h             Show this help menu\n")
 		b.WriteString("  q             Quit the application\n")
+		b.WriteString("  t             Tag search\n")
 		b.WriteString("  esc/any key   Return to todo list\n")
 		b.WriteString("\n")
 		b.WriteString(statusStyle.Render("Press any key or 'esc' to return to your todos."))
 		b.WriteString("\n")
+		return b.String()
+	}
+
+	if m.mode == modeTagSearch {
+		var b strings.Builder
+		b.WriteString(headerStyle.Render(" Tag Search ") + "\n\n")
+		b.WriteString("Type to search tags. Press esc to return.\n\n")
+		b.WriteString(m.tagSearchInput.View() + "\n\n")
+
+		// Collect all tags
+		tagSet := make(map[string]struct{})
+		for _, t := range m.todos {
+			for _, tag := range t.Tags {
+				tagSet[tag] = struct{}{}
+			}
+		}
+		// Filter tags by input
+		var tags []string
+		input := strings.ToLower(m.tagSearchInput.Value())
+		for tag := range tagSet {
+			if input == "" || strings.Contains(strings.ToLower(tag), input) {
+				tags = append(tags, tag)
+			}
+		}
+		if len(tags) == 0 {
+			b.WriteString("No tags found.\n")
+		} else {
+			b.WriteString("Tags:\n")
+			for _, tag := range tags {
+				b.WriteString("  - " + tag + "\n")
+			}
+		}
+		b.WriteString("\n")
+		b.WriteString(statusStyle.Render(m.status))
+		b.WriteString("\n\n")
+		b.WriteString("Controls: esc:back\n")
 		return b.String()
 	}
 
@@ -176,7 +213,7 @@ func (m model) View() string {
 	b.WriteString("\n")
 	b.WriteString(statusStyle.Render(m.status))
 	b.WriteString("\n\n")
-	b.WriteString("Controls: j/down k/up a:add d:delete D:delete-all e:edit <space>:toggle r:reload u:undo h:help q:quit\n")
+	b.WriteString("Controls: j/down k/up a:add d:delete D:delete-all e:edit <space>:toggle r:reload u:undo h:help t:tag-search q:quit\n")
 
 	return b.String()
 }
