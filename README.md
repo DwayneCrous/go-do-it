@@ -20,6 +20,7 @@ A simple terminal-based Todo List application written in Go, using the Bubble Te
 - 💾 **Persistent storage**: Todos are saved to a local file (`todolist.txt`)
 - 📊 **Table-like formatting**: Todos are displayed with columns for number, task, due date, priority, and tags
 - ⌨️ **Keyboard navigation and controls**: Fast, Vim-like navigation and shortcuts
+- 🔍 Tag Search: Press `t` to search and filter todos by tag in a dedicated tag search mode
 - 🎨 Built with Bubble Tea, Bubbles, and Lip Gloss for a beautiful TUI
 - **Reload**: Instantly reload todos from file without restarting
 - **Persistent storage**: Todos are saved to a local file (`todolist.txt`)
@@ -35,6 +36,7 @@ A simple terminal-based Todo List application written in Go, using the Bubble Te
 - `r`: Reload todos from file 🔄
 - `h`: Show the help menu with all keybindings 🆘
 - `q`: Quit the application ❌
+- `t`: Tag search (filter todos by tag) 🔍
 - `u`: Undo the last todo deletion
 - `D`: Delete all todos (with confirmation)
 ## 🛠️ Requirements
@@ -66,8 +68,8 @@ Run the program from your terminal:
 ./godoit.exe
 
 ### 🆕 Recent Updates
+- 🔍 **Tag Search**: You can now search for todos by tags using the `t` keybinding
 - 🏷️ **Tags**: You can now add tags to todos during add and edit flows
-- 🆘 **Help menu**: Press `h` to view a dedicated help screen with all keybindings
 ---
 
 ## 📄 License
