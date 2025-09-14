@@ -7,14 +7,13 @@ import (
 )
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	// ...existing code...
 	switch msg := msg.(type) {
 
 	case tea.KeyMsg:
 		k := msg.String()
 
 		switch m.mode {
-		// ------------------ VIEW MODE ------------------
+
 		case modeView:
 			switch k {
 			case "t":
@@ -51,7 +50,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if len(m.todos) > 0 {
 					m.mode = modeEdit
 					m.editIdx = m.cursor
-					// Pre-populate the text input with the current todo text
+
 					currentTodo := m.todos[m.cursor].Text
 					m.textInput.SetValue(currentTodo)
 					m.textInput.Focus()
@@ -83,7 +82,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, tea.Quit
 			}
 
-		// ------------------ TAG SEARCH MODE ------------------
 		case modeTagSearch:
 			var cmd tea.Cmd
 			m.tagSearchInput, cmd = m.tagSearchInput.Update(msg)
@@ -98,13 +96,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// ------------------ ADD MODE ------------------
 		case modeAdd:
 			var cmd tea.Cmd = nil
-			// Step 1: Enter todo text
+
 			if !m.dueDateSelect && !m.prioritySelect && !m.tagsSelect {
 				m.textInput, cmd = m.textInput.Update(msg)
 				if k == "enter" {
 					val := strings.TrimSpace(m.textInput.Value())
 					if val != "" {
-						// Store the todo text in tempTodoText
+
 						m.tempTodoText = val
 						m.dueDateInput = ""
 						m.priorityInput = 1
@@ -128,7 +126,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				return m, cmd
 			}
-			// Step 2: Due date
+
 			if m.dueDateSelect {
 				m.textInput, cmd = m.textInput.Update(msg)
 				if k == "enter" {
@@ -148,7 +146,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				return m, cmd
 			}
-			// Step 3: Priority
+
 			if m.prioritySelect {
 				switch k {
 				case "left":
@@ -174,7 +172,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				return m, nil
 			}
-			// Step 4: Tags
+
 			if m.tagsSelect {
 				m.textInput, cmd = m.textInput.Update(msg)
 				if k == "enter" {
@@ -217,20 +215,19 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, cmd
 			}
 
-		// ------------------ EDIT MODE ------------------
 		case modeEdit:
 			var cmd tea.Cmd
-			// Step 1: Enter todo text
+
 			if !m.dueDateSelect && !m.prioritySelect && !m.tagsSelect {
 				m.textInput, cmd = m.textInput.Update(msg)
 				if k == "enter" {
 					val := strings.TrimSpace(m.textInput.Value())
 					if val != "" && m.editIdx >= 0 && m.editIdx < len(m.todos) {
-						// Store the edited text
+
 						m.tempTodoText = val
-						// Pre-populate with existing values
+
 						m.dueDateInput = m.todos[m.editIdx].DueDate
-						// Set priority based on existing todo
+
 						switch m.todos[m.editIdx].Priority {
 						case "urgent":
 							m.priorityInput = 0
@@ -259,7 +256,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				return m, cmd
 			}
-			// Step 2: Due date
+
 			if m.dueDateSelect {
 				m.textInput, cmd = m.textInput.Update(msg)
 				if k == "enter" {
@@ -278,7 +275,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				return m, cmd
 			}
-			// Step 3: Priority
+
 			if m.prioritySelect {
 				switch k {
 				case "left":
@@ -304,12 +301,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				return m, nil
 			}
-			// Step 4: Tags
+
 			if m.tagsSelect {
 				m.textInput, cmd = m.textInput.Update(msg)
 				if k == "enter" {
 					m.tagsInput = strings.TrimSpace(m.textInput.Value())
-					// Update the todo with all fields
+
 					priority := "medium"
 					if m.priorityInput == 0 {
 						priority = "urgent"
@@ -323,7 +320,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 							tags[i] = strings.TrimSpace(tags[i])
 						}
 					}
-					// Update the existing todo
+
 					m.todos[m.editIdx].Text = m.tempTodoText
 					m.todos[m.editIdx].DueDate = m.dueDateInput
 					m.todos[m.editIdx].Priority = priority
@@ -345,7 +342,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, cmd
 			}
 
-		// ------------------ CONFIRM DELETE ------------------
 		case modeConfirmDelete:
 			switch k {
 			case "y", "enter":
@@ -366,7 +362,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.status = "Delete cancelled"
 			}
 
-		// ------------------ CONFIRM DELETE ALL ------------------
 		case modeConfirmDeleteAll:
 			switch k {
 			case "y", "enter":
@@ -381,14 +376,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.status = "Delete all cancelled"
 			}
 
-		// ------------------ HELP MODE ------------------
 		case modeHelp:
 			// Any key returns to view mode
 			m.mode = modeView
 			m.status = "Returned from help."
 		}
 
-	// ------------------ WINDOW RESIZE ------------------
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
