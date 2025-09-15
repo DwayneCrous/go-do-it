@@ -4,7 +4,6 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 )
 
-// Helper to initialize a textinput.Model for tag search
 func newTextInputModel() textinput.Model {
 	ti := textinput.New()
 	ti.Placeholder = "Search tags..."
@@ -22,13 +21,13 @@ const (
 	modeConfirmDeleteAll
 	modeEdit
 	modeHelp
-	modeTagSearch // New mode for tag search
+	modeTagSearch
 )
 
 type Todo struct {
 	Text     string
-	Priority string // "urgent", "medium", "low"
-	DueDate  string // YYYY-MM-DD
+	Priority string
+	DueDate  string
 	Done     bool
 	Tags     []string
 }
@@ -49,8 +48,8 @@ type model struct {
 	dueDateSelect  bool
 	tagsInput      string
 	tagsSelect     bool
-	tempTodoText   string          // Store todo text during add process
-	tagSearchInput textinput.Model // Text input for tag search
+	tempTodoText   string
+	tagSearchInput textinput.Model
 
 	lastDeletedTodo  Todo
 	lastDeletedIndex int
@@ -79,9 +78,10 @@ func initialModel() model {
 		dueDateSelect:    false,
 		tagsInput:        "",
 		tagsSelect:       false,
-		tagSearchInput:   newTextInputModel(), // Initialize tag search input
+		tagSearchInput:   newTextInputModel(),
 		lastDeletedTodo:  Todo{},
 		lastDeletedIndex: -1,
 		canUndo:          false,
 	}
 }
+
