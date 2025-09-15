@@ -93,7 +93,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, cmd
 
-			// ------------------ ADD MODE ------------------
 		case modeAdd:
 			var cmd tea.Cmd = nil
 
@@ -177,7 +176,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.textInput, cmd = m.textInput.Update(msg)
 				if k == "enter" {
 					m.tagsInput = strings.TrimSpace(m.textInput.Value())
-					// Add the new todo with all fields
 					priority := "medium"
 					if m.priorityInput == 0 {
 						priority = "urgent"
@@ -377,7 +375,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case modeHelp:
-			// Any key returns to view mode
 			m.mode = modeView
 			m.status = "Returned from help."
 		}
@@ -389,3 +386,4 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	return m, nil
 }
+
